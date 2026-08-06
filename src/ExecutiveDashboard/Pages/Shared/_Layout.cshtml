@@ -1,0 +1,100 @@
+﻿@using ExecutiveDashboard.Models
+@using ExecutiveDashboard.Services
+@inject IDashboardRequestContextAccessor RequestContextAccessor
+@{
+    var requestContext = RequestContextAccessor.GetCurrentContext();
+    var (workIqStatusLabel, workIqStatusCssClass, workIqStatusDetail) = GetWorkIqStatus(requestContext);
+    var currentPage = ViewContext.ActionDescriptor.RouteValues.TryGetValue("page", out var routePage)
+        ? routePage
+        : string.Empty;
+    var selectedWeekRouteValue = ViewContext.HttpContext.Request.Query.TryGetValue("week", out var weekValues)
+        ? weekValues.ToString()
+        : null;
+    selectedWeekRouteValue = string.IsNullOrWhiteSpace(selectedWeekRouteValue) ? null : selectedWeekRouteValue;
+    var isDashboardPage = string.Equals(currentPage, "/Index", StringComparison.OrdinalIgnoreCase);
+    var isMissionControlPage = string.Equals(currentPage, "/MissionControl", StringComparison.OrdinalIgnoreCase);
+
+    static (string Label, string CssClass, string Detail) GetWorkIqStatus(DashboardRequestContext context)
+    {
+        if (context.LiveDataAccessMode == LiveDataAccessMode.None)
+        {
+            return ("Unavailable", "unavailable", context.LiveSourceDetail);
+        }
+
+        if (context.SelectedMode == DashboardOperatingMode.Live && context.CanUseLiveData)
+        {
+            return ("Connected", "live", $"Source: {context.LiveSourceName} · {context.EffectiveUserLabel}");
+        }
+
+        if (context.SelectedMode == DashboardOperatingMode.Live)
+        {
+            return ("Action required", "unknown", context.LiveSourceDetail);
+        }
+
+        return ("Ready", "sample", $"Source available: {context.LiveSourceName}. Switch to Live in Mission Control when needed.");
+    }
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - ExecutiveDashboard</title>
+    <script type="importmap"></script>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/ExecutiveDashboard.styles.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="app-header">
+        <div class="container app-header__inner">
+            <a class="app-brand" asp-area="" asp-page="/Index">Executive Dashboard</a>
+            <p class="app-tagline">Aggregate weekly meeting intelligence</p>
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <div class="app-auth">
+                    <span class="app-auth__user">Signed in as @User.Identity.Name</span>
+                </div>
+            }
+        </div>
+    </header>
+    <nav class="app-navbar" aria-label="Primary">
+        <div class="container app-navbar__inner">
+            <div class="app-navbar__links">
+                <a class="app-navbar__link @(isDashboardPage ? "app-navbar__link--active" : null)"
+                   asp-area=""
+                   asp-page="/Index"
+                   asp-route-week="@selectedWeekRouteValue"
+                   aria-current="@(isDashboardPage ? "page" : null)">Dashboard</a>
+                <a class="app-navbar__link @(isMissionControlPage ? "app-navbar__link--active" : null)"
+                   asp-area=""
+                   asp-page="/MissionControl"
+                   asp-route-week="@selectedWeekRouteValue"
+                   aria-current="@(isMissionControlPage ? "page" : null)">Mission Control</a>
+            </div>
+            <div class="app-navbar__status" role="status" aria-live="polite">
+                <span class="source-state__badge source-state__badge--@workIqStatusCssClass">WorkIQ @workIqStatusLabel</span>
+                <span class="app-navbar__status-detail">@workIqStatusDetail</span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container app-main">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="app-footer">
+        <div class="container">
+            &copy; 2026 - Executive Dashboard
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

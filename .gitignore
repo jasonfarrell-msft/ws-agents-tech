@@ -1,0 +1,86 @@
+# Squad: ignore runtime state (logs, inbox, sessions)
+# Note: .squad/casting/* is identity and MUST be committed to main, not ignored
+.squad/orchestration-log/
+.squad/log/
+.squad/decisions/inbox/
+.squad/sessions/
+.squad/.scratch/
+.squad/.cache/
+# Squad: SubSquad activation file (local to this machine)
+.squad-workstream
+
+# .NET build output
+**/bin/
+**/obj/
+
+# Visual Studio IDE
+.vs/
+*.user
+*.userprefs
+*.DotSettings
+*.DotSettings.user
+
+# VS Code
+.vscode/
+!.vscode/settings.json.example
+!.vscode/extensions.json
+
+# Rider / ReSharper
+.idea/
+*.sln.iml
+**/.idea/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/packages/
+**/.nuget/packages/
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+
+# Test Results
+TestResults/
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.trx
+
+# Local environment
+appsettings.*.local.json
+*.local.json
+.env
+.env.local
+
+# Coverage reports
+coverage/
+*.coverage
+*.coveragexml
+OpenCover/
+
+# Build artifacts
+artifacts/
+publish/
+PublishProfiles/
+
+# User-specific files
+launchSettings.json.local
+*.suo
+
+# Miscellaneous
+.cache/
+.LoadTestResults/
+~$*

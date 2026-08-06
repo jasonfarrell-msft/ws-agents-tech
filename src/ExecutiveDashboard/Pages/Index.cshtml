@@ -1,0 +1,107 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Executive dashboard";
+}
+
+<section class="dashboard-hero" aria-labelledby="dashboard-title">
+    <div class="dashboard-hero__content">
+        <p class="dashboard-eyebrow">Executive dashboard</p>
+        <h1 id="dashboard-title">Weekly meeting health at a glance</h1>
+        <p class="dashboard-lede">
+            @Model.PeriodLabel · Executive metrics rendered from backend-calculated types, with unavailable and unknown
+            states kept distinct from zero.
+        </p>
+    </div>
+
+    <aside class="source-state" role="status" aria-live="polite">
+        <span class="source-state__badge source-state__badge--@Model.SourceStateCssClass">@Model.SourceStateLabel</span>
+        <h2 class="source-state__title">Source: @Model.Dashboard.SourceName</h2>
+        <p class="source-state__detail">
+            @(string.IsNullOrWhiteSpace(Model.Dashboard.SourceMessage)
+                ? "Backend-provided aggregate meeting signals are available for this dashboard."
+                : Model.Dashboard.SourceMessage)
+        </p>
+        <p class="source-state__timestamp">
+            Reporting window: @Model.PeriodLabel
+        </p>
+    </aside>
+</section>
+
+<section class="dashboard-section" aria-labelledby="week-picker-heading">
+    <div class="dashboard-section__heading">
+        <h2 id="week-picker-heading">Reporting week</h2>
+        <p>Select an ISO week to refresh aggregate metrics for that backend reporting window.</p>
+    </div>
+    <form method="get" class="week-picker" data-immediate-loading>
+        <label class="week-picker__label" for="dashboard-week-picker">Reporting week (UTC)</label>
+        <div class="week-picker__controls">
+            <input type="week"
+                   id="dashboard-week-picker"
+                   name="week"
+                   value="@Model.SelectedWeekValue"
+                   max="@Model.MaxSelectableWeekValue"
+                   required
+                   data-submit-on-change />
+            <button type="submit" class="btn btn-outline-primary btn-sm">Load week</button>
+        </div>
+        <p class="week-picker__hint">Weeks follow ISO format (Monday through Sunday).</p>
+        <p class="week-picker__loading" data-loading-indicator role="status" aria-live="polite" hidden>
+            Loading selected week metrics…
+        </p>
+    </form>
+</section>
+
+<section class="dashboard-section" aria-labelledby="mission-control-launch-heading">
+    <div class="dashboard-section__heading">
+        <h2 id="mission-control-launch-heading">Mission Control</h2>
+        <p>Open Mission Control in this app to switch between sample and live data modes, then return to dashboard metrics.</p>
+    </div>
+    <p class="dashboard-section__action">
+        <a class="btn btn-outline-primary"
+           asp-page="/MissionControl"
+           asp-route-week="@Model.SelectedWeekValue">Go to Mission Control</a>
+    </p>
+</section>
+
+<section class="dashboard-section" aria-labelledby="metrics-heading">
+    <div class="dashboard-section__heading">
+        <h2 id="metrics-heading">Executive metrics</h2>
+        <p>Aggregate-only indicators for the selected reporting week.</p>
+    </div>
+
+    <ul class="metric-grid" role="list">
+        @for (var index = 0; index < Model.Dashboard.Metrics.Count; index++)
+        {
+            var metric = Model.Dashboard.Metrics[index];
+            var titleId = $"metric-{index}";
+            var descriptionId = $"{titleId}-description";
+            var guidanceId = $"{titleId}-guidance";
+            var contextId = $"{titleId}-context";
+            var describedBy = metric.ThresholdGuidance is null
+                ? $"{descriptionId} {contextId}"
+                : $"{descriptionId} {guidanceId} {contextId}";
+
+            <li class="metric-grid__item">
+                <article class="@Model.GetMetricCardCssClass(metric)" aria-labelledby="@titleId" aria-describedby="@describedBy">
+                    <p class="metric-card__status">@Model.GetMetricStateLabel(metric)</p>
+                    <h3 id="@titleId" class="metric-card__title">@metric.Title</h3>
+                    <p class="metric-card__value">@metric.Value</p>
+                    <p id="@descriptionId" class="metric-card__description">@metric.HelpText</p>
+                    @if (!string.IsNullOrWhiteSpace(metric.ThresholdGuidance))
+                    {
+                        <p id="@guidanceId" class="metric-card__guidance">
+                            <span class="metric-card__guidance-label">Threshold guidance:</span> @metric.ThresholdGuidance
+                        </p>
+                    }
+                    <p id="@contextId" class="metric-card__context">@Model.GetMetricContext(metric)</p>
+                </article>
+            </li>
+        }
+    </ul>
+</section>
+
+<section class="dashboard-note" aria-labelledby="data-handling-heading">
+    <h2 id="data-handling-heading">Data handling</h2>
+    <p>@Model.PrivacyNote</p>
+</section>

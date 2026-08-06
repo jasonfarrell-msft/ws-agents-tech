@@ -1,0 +1,10 @@
+{
+  "universe_usage_history": [{"universe": "Gundam SEED", "assignment_id": "executive-dashboard-2026-08-05", "used_at": "2026-08-05T13:53:37.053-04:00"}],
+  "assignment_cast_snapshots": {
+    "executive-dashboard-2026-08-05": {
+      "universe": "Gundam SEED",
+      "agents": {"lead": "Kira", "frontend": "Lacus", "backend": "Athrun", "data": "Murrue", "tester": "Natarle", "workiq": "Mu"},
+      "created_at": "2026-08-05T13:53:37.053-04:00"
+    }
+  }
+}

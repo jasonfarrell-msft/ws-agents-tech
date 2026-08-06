@@ -1,0 +1,55 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - link "Executive Dashboard" [ref=e4] [cursor=pointer]:
+        - /url: /
+      - paragraph [ref=e5]: Aggregate weekly meeting intelligence
+  - main [ref=e7]:
+    - region [ref=e8]:
+      - generic [ref=e9]:
+        - paragraph [ref=e10]: Executive dashboard
+        - heading "Weekly meeting health at a glance" [level=1] [ref=e11]
+        - paragraph [ref=e12]: Aug 3 – Aug 5, 2026 UTC · Four executive metrics rendered from backend-calculated types, with unavailable and unknown states kept distinct from zero.
+      - status [ref=e13]:
+        - generic [ref=e14]: Sample data
+        - 'heading "Source: Deterministic sample provider" [level=2] [ref=e15]'
+        - paragraph [ref=e16]: Sample data only; live WorkIQ access must be supplied by a server-side provider implementation.
+        - paragraph [ref=e17]: "Reporting window: Aug 3 – Aug 5, 2026 UTC"
+    - region [ref=e18]:
+      - generic [ref=e19]:
+        - heading "Executive metrics" [level=2] [ref=e20]
+        - paragraph [ref=e21]: Aggregate-only indicators for the current week.
+      - list [ref=e22]:
+        - listitem [ref=e23]:
+          - article [ref=e24]:
+            - paragraph [ref=e25]: Sample data
+            - heading "Meetings this week" [level=3] [ref=e26]
+            - paragraph [ref=e27]: "4"
+            - paragraph [ref=e28]: Meetings found in the current week.
+            - paragraph [ref=e29]: Rendered from the deterministic backend sample provider while WorkIQ credentials are unavailable.
+        - listitem [ref=e30]:
+          - article [ref=e31]:
+            - paragraph [ref=e32]: Sample data
+            - heading "Average meeting length" [level=3] [ref=e33]
+            - paragraph [ref=e34]: 41 min
+            - paragraph [ref=e35]: Average duration across available meetings.
+            - paragraph [ref=e36]: Rendered from the deterministic backend sample provider while WorkIQ credentials are unavailable.
+        - listitem [ref=e37]:
+          - article [ref=e38]:
+            - paragraph [ref=e39]: Sample data
+            - heading "Percent under 10% talk time" [level=3] [ref=e40]
+            - paragraph [ref=e41]: 50%
+            - paragraph [ref=e42]: Percentage of meetings where the selected user spoke under 10% of the meeting duration.
+            - paragraph [ref=e43]: Rendered from the deterministic backend sample provider while WorkIQ credentials are unavailable.
+        - listitem [ref=e44]:
+          - article [ref=e45]:
+            - paragraph [ref=e46]: Sample data
+            - heading "Percent with no decision reached" [level=3] [ref=e47]
+            - paragraph [ref=e48]: 50%
+            - paragraph [ref=e49]: Percentage of meetings where no decision was reached.
+            - paragraph [ref=e50]: Rendered from the deterministic backend sample provider while WorkIQ credentials are unavailable.
+    - region [ref=e51]:
+      - heading "Data handling" [level=2] [ref=e52]
+      - paragraph [ref=e53]: Only aggregate meeting indicators are shown. Participant names, transcript content, and per-meeting details stay off the dashboard.
+  - contentinfo [ref=e54]:
+    - generic [ref=e55]: © 2026 - Executive Dashboard

@@ -1,0 +1,63 @@
+@page
+@model MissionControlModel
+@{
+    ViewData["Title"] = "Mission Control";
+}
+
+<section class="dashboard-section" aria-labelledby="mission-control-heading">
+    <div class="dashboard-section__heading">
+        <h1 id="mission-control-heading">Mission Control</h1>
+        <p>Switch intentionally between deterministic sample data and live corporate meeting data.</p>
+    </div>
+
+    <p class="dashboard-section__action">
+        <a asp-page="/Index" asp-route-week="@Model.Week">Return to dashboard</a>
+    </p>
+
+    <div class="mission-control">
+        <form method="post" asp-page-handler="SetMode" class="mission-control__panel">
+            <input type="hidden" name="week" value="@Model.Week" />
+            <fieldset class="mission-control__fieldset">
+                <legend class="mission-control__legend">Dashboard data mode</legend>
+                <label class="mission-control__choice">
+                    <input type="radio" name="selectedMode" value="Sample" checked="@Model.MissionControl.IsSampleSelected" />
+                    <span>
+                        <strong>Sample</strong>
+                        <span class="mission-control__choice-detail">Deterministic backend sample data with no corporate access.</span>
+                    </span>
+                </label>
+                <label class="mission-control__choice">
+                    <input type="radio" name="selectedMode" value="Live" checked="@Model.MissionControl.IsLiveSelected" />
+                    <span>
+                        <strong>Live</strong>
+                        <span class="mission-control__choice-detail">Current corporate user data through the approved local live source.</span>
+                    </span>
+                </label>
+            </fieldset>
+            <button type="submit" class="btn btn-primary">Apply mode</button>
+        </form>
+
+        <aside class="mission-control__panel mission-control__panel--status" role="status" aria-live="polite">
+            <span class="source-state__badge source-state__badge--@(Model.MissionControl.IsLiveSelected ? "live" : "sample")">
+                @(Model.MissionControl.IsLiveSelected ? "Live selected" : "Sample selected")
+            </span>
+            <h2 class="mission-control__title">Live source: @Model.MissionControl.LiveSourceName</h2>
+            <p class="mission-control__detail"><strong>Effective user:</strong> @Model.MissionControl.EffectiveUserLabel</p>
+            <p class="mission-control__detail">@Model.MissionControl.LiveSourceDetail</p>
+            @if (Model.MissionControl.CanSignIn)
+            {
+                <form method="post" asp-page-handler="SignIn" class="mission-control__action">
+                    <input type="hidden" name="week" value="@Model.Week" />
+                    <button type="submit" class="btn btn-outline-primary">Sign in for live mode</button>
+                </form>
+            }
+            @if (Model.MissionControl.CanSignOut)
+            {
+                <form method="post" asp-page-handler="SignOut" class="mission-control__action">
+                    <input type="hidden" name="week" value="@Model.Week" />
+                    <button type="submit" class="btn btn-outline-secondary">Sign out</button>
+                </form>
+            }
+        </aside>
+    </div>
+</section>

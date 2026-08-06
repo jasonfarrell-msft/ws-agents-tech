@@ -1,0 +1,14 @@
+{
+  "agents": {
+    "kira": {"persistent_name": "Kira", "universe": "Gundam SEED", "created_at": "2026-08-05T13:53:37.053-04:00", "legacy_named": false, "status": "active"},
+    "lacus": {"persistent_name": "Lacus", "universe": "Gundam SEED", "created_at": "2026-08-05T13:53:37.053-04:00", "legacy_named": false, "status": "active"},
+    "athrun": {"persistent_name": "Athrun", "universe": "Gundam SEED", "created_at": "2026-08-05T13:53:37.053-04:00", "legacy_named": false, "status": "active"},
+    "murrue": {"persistent_name": "Murrue", "universe": "Gundam SEED", "created_at": "2026-08-05T13:53:37.053-04:00", "legacy_named": false, "status": "active"},
+    "natarle": {"persistent_name": "Natarle", "universe": "Gundam SEED", "created_at": "2026-08-05T13:53:37.053-04:00", "legacy_named": false, "status": "active"},
+    "mu": {"persistent_name": "Mu", "universe": "Gundam SEED", "created_at": "2026-08-05T13:53:37.053-04:00", "legacy_named": false, "status": "active"},
+    "scribe": {"persistent_name": "Scribe", "universe": "Gundam SEED", "created_at": "2026-08-05T13:53:37.053-04:00", "legacy_named": false, "status": "active"},
+    "ralph": {"persistent_name": "Ralph", "universe": "Gundam SEED", "created_at": "2026-08-05T13:53:37.053-04:00", "legacy_named": false, "status": "active"},
+    "rai": {"persistent_name": "Rai", "universe": "Gundam SEED", "created_at": "2026-08-05T13:53:37.053-04:00", "legacy_named": false, "status": "active"},
+    "fact-checker": {"persistent_name": "Fact Checker", "universe": "Gundam SEED", "created_at": "2026-08-05T13:53:37.053-04:00", "legacy_named": false, "status": "active"}
+  }
+}
