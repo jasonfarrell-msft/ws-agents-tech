@@ -23,4 +23,8 @@
     <ProjectReference Include="..\..\src\ExecutiveDashboard\ExecutiveDashboard.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Fixtures/**/*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

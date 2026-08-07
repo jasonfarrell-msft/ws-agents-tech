@@ -65,7 +65,7 @@ public sealed class WorkIqChatClient(
                 return WorkIqMeetingDataResult.Malformed("Work IQ did not return a conversation ID.");
             }
 
-            var prompt = WorkIqMeetingPromptBuilder.BuildMeetingPrompt(query);
+            var prompt = WorkIqMeetingPromptBuilder.BuildDirectMeetingPrompt(query);
             var chatBody = new WorkIqChatRequest(
                 new WorkIqChatMessage(prompt),
                 new WorkIqLocationHint(configuration.TimeZone),

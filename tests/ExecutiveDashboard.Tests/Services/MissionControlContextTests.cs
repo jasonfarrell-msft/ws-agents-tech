@@ -53,6 +53,31 @@ public sealed class MissionControlContextTests
     }
 
     [Fact]
+    public void SampleProfileCookie_DefaultsToHealthyAndPersistsSelection()
+    {
+        var defaultContext = new DefaultHttpContext();
+        Assert.Equal(SampleProfile.HealthyWeek, SampleProfileCookie.Read(defaultContext.Request.Cookies));
+
+        var responseContext = new DefaultHttpContext();
+        SampleProfileCookie.Write(responseContext.Response, SampleProfile.OverloadedWeek, secure: false);
+
+        Assert.Contains(
+            $"{SampleProfileCookie.CookieName}=OverloadedWeek",
+            responseContext.Response.Headers.SetCookie.ToString());
+    }
+
+    [Fact]
+    public void DashboardRequestContextAccessor_ReadsSelectedSampleProfile()
+    {
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.Headers.Cookie = $"{SampleProfileCookie.CookieName}=LowEngagementWeek";
+
+        var context = CreateAccessor(httpContext).GetCurrentContext();
+
+        Assert.Equal(SampleProfile.LowEngagementWeek, context.SelectedSampleProfile);
+    }
+
+    [Fact]
     public void DashboardRequestContextAccessor_UsesConfiguredSampleUserByDefault()
     {
         var accessor = CreateAccessor(

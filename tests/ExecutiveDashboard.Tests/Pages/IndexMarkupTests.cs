@@ -3,24 +3,18 @@ namespace ExecutiveDashboard.Tests.Pages;
 public sealed class IndexMarkupTests
 {
     [Fact]
-    public void IndexPage_MissionControlLinkNavigatesInSameTabWindow()
+    public void IndexPage_DoesNotDuplicateMissionControlLaunchSection()
     {
         var indexMarkupPath = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory,
             "../../../../../src/ExecutiveDashboard/Pages/Index.cshtml"));
         var markup = File.ReadAllText(indexMarkupPath);
 
-        Assert.Matches(
-            "(?is)<a[^>]*asp-page=\"/MissionControl\"[^>]*asp-route-week=\"@Model.SelectedWeekValue\"[^>]*>\\s*Go\\s+to\\s+Mission\\s+Control\\s*</a>",
-            markup);
-        Assert.DoesNotContain("target=\"_blank\"", markup, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("rel=\"noopener\"", markup, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("opens in a separate browser tab", markup, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("new browser tab", markup, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Go to Mission Control", markup, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void SharedLayout_ExposesWorkIqStatusInNavbar()
+    public void SharedLayout_ExposesWorkIqStatusInHeader()
     {
         var layoutMarkupPath = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory,
@@ -28,33 +22,50 @@ public sealed class IndexMarkupTests
         var markup = File.ReadAllText(layoutMarkupPath);
 
         Assert.Matches(
-            "(?is)<nav[^>]*class=\"app-navbar\"[^>]*>.*<div[^>]*app-navbar__status[^>]*role=\"status\"[^>]*aria-live=\"polite\"[^>]*>.*WorkIQ\\s+@workIqStatusLabel.*</div>.*</nav>",
+            "(?is)<header[^>]*class=\"app-header\"[^>]*>.*<div[^>]*app-navbar__status[^>]*role=\"status\"[^>]*aria-live=\"polite\"[^>]*>.*WorkIQ\\s+@workIqStatusLabel.*</div>.*</header>",
             markup);
     }
 
     [Fact]
     public void IndexPage_WeekPickerUsesGetAndBindsSelectedWeek()
     {
-        var indexMarkupPath = Path.GetFullPath(Path.Combine(
+        var layoutMarkupPath = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory,
-            "../../../../../src/ExecutiveDashboard/Pages/Index.cshtml"));
-        var markup = File.ReadAllText(indexMarkupPath);
+            "../../../../../src/ExecutiveDashboard/Pages/Shared/_Layout.cshtml"));
+        var markup = File.ReadAllText(layoutMarkupPath);
 
         Assert.Matches(
-            "(?is)<form[^>]*method=\"get\"[^>]*data-immediate-loading[^>]*>.*<input[^>]*type=\"week\"[^>]*name=\"week\"[^>]*value=\"@Model.SelectedWeekValue\"[^>]*data-submit-on-change[^>]*>.*</form>",
+            "(?is)<form[^>]*method=\"get\"[^>]*class=\"week-picker week-picker--compact\"[^>]*data-immediate-loading[^>]*>.*<input[^>]*type=\"week\"[^>]*name=\"week\"[^>]*value=\"@selectedWeekRouteValue\"[^>]*data-submit-on-change[^>]*>.*</form>",
             markup);
+        Assert.Contains("Completed reporting week", markup, StringComparison.Ordinal);
+        Assert.Contains("max=\"@maxSelectableWeekValue\"", markup, StringComparison.Ordinal);
     }
 
     [Fact]
     public void IndexPage_HasAccessibleLoadingStatusRegion()
+    {
+        var layoutMarkupPath = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "../../../../../src/ExecutiveDashboard/Pages/Shared/_Layout.cshtml"));
+        var markup = File.ReadAllText(layoutMarkupPath);
+
+        Assert.Matches(
+            "(?is)<span[^>]*data-loading-indicator[^>]*role=\"status\"[^>]*aria-live=\"polite\"[^>]*>\\s*Loading…\\s*</span>",
+            markup);
+    }
+
+    [Fact]
+    public void IndexPage_FallsBackToDefaultDashboardTitleAndDescription()
     {
         var indexMarkupPath = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory,
             "../../../../../src/ExecutiveDashboard/Pages/Index.cshtml"));
         var markup = File.ReadAllText(indexMarkupPath);
 
-        Assert.Matches(
-            "(?is)<p[^>]*data-loading-indicator[^>]*role=\"status\"[^>]*aria-live=\"polite\"[^>]*>\\s*Loading\\s+selected\\s+week\\s+metrics\\W*\\s*</p>",
-            markup);
+        Assert.Contains("@(Model.Dashboard.DisplayTitle ?? \"Executive metrics\")", markup, StringComparison.Ordinal);
+        Assert.Contains(
+            "@(Model.Dashboard.DisplayDescription ?? \"Each tile isolates one decision signal from the selected reporting week.\")",
+            markup,
+            StringComparison.Ordinal);
     }
 }

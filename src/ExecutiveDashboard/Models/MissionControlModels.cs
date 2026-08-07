@@ -21,9 +21,12 @@ public sealed record MissionControlViewModel(
     string EffectiveUserLabel,
     bool IsLocalUserAuthenticated,
     bool CanSignIn,
-    bool CanSignOut)
+    bool CanSignOut,
+    SampleProfile SelectedSampleProfile = SampleProfile.HealthyWeek)
 {
     public bool IsLiveSelected => SelectedMode == DashboardOperatingMode.Live;
 
     public bool IsSampleSelected => SelectedMode == DashboardOperatingMode.Sample;
+
+    public IReadOnlyList<SampleProfileDefinition> SampleProfiles => SampleProfileCatalog.All;
 }

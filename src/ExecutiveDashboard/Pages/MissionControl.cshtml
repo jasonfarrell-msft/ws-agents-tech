@@ -34,6 +34,22 @@
                     </span>
                 </label>
             </fieldset>
+            <fieldset class="mission-control__fieldset">
+                <legend class="mission-control__legend">Sample profile</legend>
+                @foreach (var profile in Model.MissionControl.SampleProfiles)
+                {
+                    <label class="mission-control__choice">
+                        <input type="radio"
+                               name="selectedSampleProfile"
+                               value="@profile.Id"
+                               checked="@(profile.Id == Model.MissionControl.SelectedSampleProfile)" />
+                        <span>
+                            <strong>@profile.Title</strong>
+                            <span class="mission-control__choice-detail">@profile.Description</span>
+                        </span>
+                    </label>
+                }
+            </fieldset>
             <button type="submit" class="btn btn-primary">Apply mode</button>
         </form>
 
@@ -42,6 +58,10 @@
                 @(Model.MissionControl.IsLiveSelected ? "Live selected" : "Sample selected")
             </span>
             <h2 class="mission-control__title">Live source: @Model.MissionControl.LiveSourceName</h2>
+            <p class="mission-control__detail">
+                <strong>Sample profile:</strong>
+                @ExecutiveDashboard.Models.SampleProfileCatalog.Get(Model.MissionControl.SelectedSampleProfile).Title
+            </p>
             <p class="mission-control__detail"><strong>Effective user:</strong> @Model.MissionControl.EffectiveUserLabel</p>
             <p class="mission-control__detail">@Model.MissionControl.LiveSourceDetail</p>
             @if (Model.MissionControl.CanSignIn)

@@ -46,8 +46,21 @@ button:focus-visible,
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 0.75rem;
-  padding-block: 1rem;
+  gap: 1.5rem;
+  padding-block: 1.15rem;
+}
+
+.app-header__identity,
+.app-header__right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.app-header__right {
+  justify-content: flex-end;
+  margin-left: auto;
 }
 
 .app-brand {
@@ -68,7 +81,6 @@ button:focus-visible,
   flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
-  margin-left: auto;
 }
 
 .app-auth__user {
@@ -95,7 +107,7 @@ button:focus-visible,
   flex-wrap: wrap;
   gap: 0.8rem;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding-block: 0.7rem;
 }
 
@@ -127,6 +139,46 @@ button:focus-visible,
   border-color: #9ebdf4;
   background: var(--accent-soft);
   color: #173d7a;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
+}
+
+.week-picker--compact {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.week-picker--compact label {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.week-picker__range {
+  color: var(--text);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.week-picker--compact input[type="week"] {
+  min-height: 2.15rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  padding: 0.25rem 0.55rem;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.week-picker--compact .week-picker__loading {
+  margin: 0;
+  font-size: 0.8rem;
 }
 
 .app-navbar__status {
@@ -142,28 +194,15 @@ button:focus-visible,
 }
 
 .app-main {
-  padding-block: 2rem 3rem;
+  padding-block: 2.4rem 3rem;
 }
 
-.dashboard-hero {
-  display: grid;
-  gap: 1.5rem;
-  align-items: start;
-  margin-bottom: 2rem;
-}
-
-.dashboard-hero__content,
-.source-state,
 .metric-card,
 .dashboard-note {
   border: 1px solid var(--border);
   border-radius: 1.25rem;
   background: var(--surface);
   box-shadow: var(--shadow);
-}
-
-.dashboard-hero__content {
-  padding: 1.75rem;
 }
 
 .dashboard-eyebrow {
@@ -175,7 +214,6 @@ button:focus-visible,
   text-transform: uppercase;
 }
 
-.dashboard-hero h1,
 .dashboard-section h1,
 .dashboard-section h2,
 .dashboard-note h2 {
@@ -195,54 +233,24 @@ button:focus-visible,
   color: var(--muted);
 }
 
+.dashboard-alert {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.7rem;
+  margin: 0 0 1rem;
+  border-left: 4px solid #b7791f;
+  padding: 0.85rem 1rem;
+  background: #fff8eb;
+  color: #684500;
+}
+
 .dashboard-lede {
   margin: 1rem 0 0;
   max-width: 44rem;
   font-size: 1.05rem;
 }
 
-.week-picker {
-  margin-top: 1.35rem;
-}
 
-.week-picker__label {
-  display: block;
-  margin-bottom: 0.45rem;
-  font-weight: 700;
-}
-
-.week-picker__controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
-  align-items: center;
-}
-
-.week-picker input[type="week"] {
-  min-height: 2.45rem;
-  border: 1px solid var(--border);
-  border-radius: 0.75rem;
-  padding: 0.35rem 0.7rem;
-  background: #fff;
-  color: var(--text);
-}
-
-.week-picker__hint {
-  margin: 0.6rem 0 0;
-  color: var(--muted);
-  font-size: 0.92rem;
-}
-
-.week-picker__loading {
-  margin: 0.65rem 0 0;
-  color: var(--accent);
-  font-size: 0.92rem;
-  font-weight: 600;
-}
-
-.week-picker.is-loading .week-picker__controls {
-  opacity: 0.8;
-}
 
 .source-state {
   padding: 1.5rem;
@@ -289,6 +297,10 @@ button:focus-visible,
 
 .dashboard-section {
   margin-bottom: 2rem;
+}
+
+.metrics-section {
+  margin-top: 0.5rem;
 }
 
 .mission-control {
@@ -371,8 +383,8 @@ button:focus-visible,
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.25rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -383,8 +395,25 @@ button:focus-visible,
 }
 
 .metric-card {
+  position: relative;
+  overflow: hidden;
   height: 100%;
-  padding: 1.35rem;
+  min-height: 17rem;
+  padding: 1.5rem;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.metric-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 0.3rem;
+  background: linear-gradient(90deg, var(--accent), #78aaff);
+}
+
+.metric-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 24px 44px rgba(17, 32, 51, 0.13);
 }
 
 .metric-card--unavailable {
@@ -428,6 +457,16 @@ button:focus-visible,
   font-size: clamp(2rem, 4vw, 2.8rem);
   font-weight: 700;
   line-height: 1;
+}
+
+.metric-card__query {
+  margin: 0 0 1rem;
+  color: var(--accent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .metric-card__description,
@@ -483,12 +522,14 @@ button:focus-visible,
 }
 
 @media (min-width: 992px) {
-  .dashboard-hero {
-    grid-template-columns: minmax(0, 2fr) minmax(20rem, 1fr);
-  }
-
   .mission-control {
     grid-template-columns: minmax(0, 1.4fr) minmax(20rem, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -497,14 +538,23 @@ button:focus-visible,
     padding-block: 1.5rem 2.5rem;
   }
 
-  .app-navbar__status-detail {
+  .app-header__right,
+  .app-navbar__status {
     width: 100%;
+    justify-content: flex-start;
   }
 
-  .dashboard-hero__content,
-  .source-state,
   .metric-card,
   .dashboard-note {
     padding: 1.2rem;
+  }
+
+  .week-picker--compact {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .metric-grid {
+    grid-template-columns: 1fr;
   }
 }

@@ -1,4 +1,3 @@
-using System.Globalization;
 using ExecutiveDashboard.Models;
 using ExecutiveDashboard.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -12,6 +11,19 @@ public sealed class IndexModel(IDashboardService dashboardService, TimeProvider 
     public string? Week { get; set; }
 
     public DashboardViewModel Dashboard { get; private set; } = DashboardViewModel.Empty;
+
+    public IReadOnlyList<DashboardMetricCard> VisibleMetrics =>
+        Dashboard.Metrics
+            .Where(metric => metric.Availability == AvailabilityState.Available)
+            .ToArray();
+
+    private IReadOnlyList<DashboardMetricCard> ActionableMetricDiagnostics =>
+        Dashboard.Metrics
+            .Where(metric =>
+                metric.Availability == AvailabilityState.Unknown
+                && metric.IsDiagnosticRelevant
+                && !string.IsNullOrWhiteSpace(metric.HelpText))
+            .ToArray();
 
     public string SelectedWeekValue { get; private set; } = string.Empty;
 
@@ -40,16 +52,30 @@ public sealed class IndexModel(IDashboardService dashboardService, TimeProvider 
             _ => "unavailable"
         };
 
-    public string PrivacyNote =>
-        "Only aggregate meeting indicators are shown. Participant names, transcript content, and per-meeting details stay off the dashboard.";
+    public bool HasMetricDiagnostics =>
+        Dashboard.SourceAvailability != AvailabilityState.Available
+        || !string.IsNullOrWhiteSpace(Dashboard.SourceMessage)
+        || ActionableMetricDiagnostics.Count > 0;
+
+    public string MetricDiagnosticsTitle => Dashboard.SourceAvailability == AvailabilityState.Unavailable
+        ? "Metric data unavailable."
+        : "Metric data needs attention.";
+
+    public string MetricDiagnosticsMessage => GetMetricDiagnosticsMessage();
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
-        var currentWeekStart = StartOfWeek(timeProvider.GetUtcNow());
-        var selectedWeekStart = ResolveSelectedWeekStart(Week, currentWeekStart);
+        var lastCompletedWeekStart = IsoWeekSelection.LastCompletedWeekStart(timeProvider.GetUtcNow());
+        var selectedWeekStart = IsoWeekSelection.ResolveSelectedWeekStart(Week, lastCompletedWeekStart);
         Dashboard = await dashboardService.GetDashboardAsync(selectedWeekStart, cancellationToken);
-        SelectedWeekValue = ToWeekPickerValue(Dashboard.PeriodStartsAtUtc);
-        MaxSelectableWeekValue = ToWeekPickerValue(currentWeekStart);
+        SelectedWeekValue = IsoWeekSelection.ToWeekPickerValue(Dashboard.PeriodStartsAtUtc);
+        MaxSelectableWeekValue = IsoWeekSelection.ToWeekPickerValue(lastCompletedWeekStart);
+        if (PageContext?.ViewData is not null)
+        {
+            ViewData["SelectedWeekValue"] = SelectedWeekValue;
+            ViewData["MaxSelectableWeekValue"] = MaxSelectableWeekValue;
+            ViewData["PeriodLabel"] = PeriodLabel;
+        }
     }
 
     public string GetMetricStateLabel(DashboardMetricCard metric) => metric.Availability switch
@@ -69,7 +95,7 @@ public sealed class IndexModel(IDashboardService dashboardService, TimeProvider 
 
     public string GetMetricContext(DashboardMetricCard metric) => metric.Availability switch
     {
-        AvailabilityState.Available when Dashboard.IsSampleData => "Rendered from the deterministic backend sample provider while WorkIQ credentials are unavailable.",
+        AvailabilityState.Available when Dashboard.IsSampleData => "Rendered from the deterministic sample dataset.",
         AvailabilityState.Available when metric.Threshold is { IsTriggered: true } threshold =>
             $"{threshold.Label} threshold met: {threshold.TriggerValue:0.#}+ {threshold.Unit}.",
         AvailabilityState.Available => "Calculated by the backend meeting metrics service.",
@@ -77,65 +103,71 @@ public sealed class IndexModel(IDashboardService dashboardService, TimeProvider 
         _ => "The current backend provider does not have enough data to populate this metric."
     };
 
-    private static DateTimeOffset ResolveSelectedWeekStart(string? week, DateTimeOffset currentWeekStart)
-    {
-        if (!TryParseWeekPickerValue(week, out var selectedWeekStart))
-        {
-            return currentWeekStart;
-        }
-
-        return selectedWeekStart > currentWeekStart
-            ? currentWeekStart
-            : selectedWeekStart;
-    }
-
-    private static bool TryParseWeekPickerValue(string? value, out DateTimeOffset weekStartUtc)
-    {
-        weekStartUtc = default;
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return false;
-        }
-
-        var segments = value.Split("-W", StringSplitOptions.TrimEntries);
-        if (segments.Length != 2
-            || !int.TryParse(segments[0], out var year)
-            || !int.TryParse(segments[1], out var week)
-            || year is < 1 or > 9999)
-        {
-            return false;
-        }
-
-        if (week < 1 || week > ISOWeek.GetWeeksInYear(year))
-        {
-            return false;
-        }
-
-        var monday = ISOWeek.ToDateTime(year, week, DayOfWeek.Monday);
-        weekStartUtc = new DateTimeOffset(monday, TimeSpan.Zero);
-        return true;
-    }
-
-    private static string ToWeekPickerValue(DateTimeOffset weekStartUtc)
-    {
-        var utc = weekStartUtc.ToUniversalTime();
-        var isoYear = ISOWeek.GetYear(utc.DateTime);
-        var isoWeek = ISOWeek.GetWeekOfYear(utc.DateTime);
-        return $"{isoYear:0000}-W{isoWeek:00}";
-    }
-
-    private static DateTimeOffset StartOfWeek(DateTimeOffset timestampUtc)
-    {
-        var utcTimestamp = timestampUtc.ToUniversalTime();
-        var daysSinceMonday = ((int)utcTimestamp.DayOfWeek + 6) % 7;
-        var startOfDay = new DateTimeOffset(utcTimestamp.Year, utcTimestamp.Month, utcTimestamp.Day, 0, 0, 0, TimeSpan.Zero);
-        return startOfDay.AddDays(-daysSinceMonday);
-    }
-
     private static DateTimeOffset GetPeriodEndForDisplay(DateTimeOffset periodStartUtc, DateTimeOffset periodEndUtc)
     {
         var isFullWeekWindow = periodEndUtc - periodStartUtc == TimeSpan.FromDays(7)
             && periodEndUtc.TimeOfDay == TimeSpan.Zero;
         return isFullWeekWindow ? periodEndUtc.AddDays(-1) : periodEndUtc;
+    }
+
+    private string GetMetricDiagnosticsMessage()
+    {
+        var diagnostics = new List<string>();
+        AppendDiagnostic(diagnostics, GetSourceDiagnosticsMessage());
+
+        foreach (var metric in ActionableMetricDiagnostics)
+        {
+            AppendDiagnostic(
+                diagnostics,
+                $"{metric.Title}: {metric.HelpText}",
+                metric.HelpText);
+        }
+
+        return diagnostics.Count > 0
+            ? string.Join(" ", diagnostics)
+            : string.Empty;
+    }
+
+    private string? GetSourceDiagnosticsMessage()
+    {
+        if (!string.IsNullOrWhiteSpace(Dashboard.SourceMessage))
+        {
+            return Dashboard.SourceMessage;
+        }
+
+        if (Dashboard.SourceAvailability == AvailabilityState.Available)
+        {
+            return null;
+        }
+
+        return Dashboard.SourceAvailability == AvailabilityState.Unknown
+            ? "Meeting data availability is unknown for the selected reporting period."
+            : "Meeting data is unavailable for the selected reporting period.";
+    }
+
+    private static void AppendDiagnostic(
+        List<string> diagnostics,
+        string? candidate,
+        params string?[] duplicateFragments)
+    {
+        if (string.IsNullOrWhiteSpace(candidate))
+        {
+            return;
+        }
+
+        var trimmedCandidate = candidate.Trim();
+        var duplicateChecks = duplicateFragments
+            .Append(trimmedCandidate)
+            .Where(fragment => !string.IsNullOrWhiteSpace(fragment))
+            .Select(fragment => fragment!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (diagnostics.Any(existing =>
+                duplicateChecks.Any(fragment => existing.Contains(fragment, StringComparison.OrdinalIgnoreCase))))
+        {
+            return;
+        }
+
+        diagnostics.Add(trimmedCandidate);
     }
 }

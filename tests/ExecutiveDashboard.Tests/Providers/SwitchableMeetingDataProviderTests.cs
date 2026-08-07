@@ -44,7 +44,6 @@ public sealed class SwitchableMeetingDataProviderTests
             AvailabilityState.Unknown,
             AvailabilityState.Unknown,
             AvailabilityState.Unknown,
-            AvailabilityState.Unknown,
             "Work IQ CLI",
             now,
             "live");

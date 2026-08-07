@@ -1,5 +1,7 @@
 using ExecutiveDashboard.Models;
+using ExecutiveDashboard.Providers;
 using ExecutiveDashboard.Services;
+using Microsoft.Extensions.Options;
 
 namespace ExecutiveDashboard.Tests.Services;
 
@@ -13,10 +15,9 @@ public sealed class MeetingMetricsServiceTests
         var dataSet = new MeetingDataSet(
             new[]
             {
-                Meeting("m1", TimeSpan.FromMinutes(30), userId, TimeSpan.FromMinutes(2), MeetingDecisionOutcome.Reached, attendeeCount: 9, replyCount: 4),
-                Meeting("m2", TimeSpan.FromMinutes(60), userId, TimeSpan.FromMinutes(12), MeetingDecisionOutcome.NoneReached, attendeeCount: 11, replyCount: 12)
+                Meeting("m1", TimeSpan.FromMinutes(30), userId, TimeSpan.FromMinutes(2), MeetingDecisionOutcome.Reached, attendeeCount: 9),
+                Meeting("m2", TimeSpan.FromMinutes(60), userId, TimeSpan.FromMinutes(12), MeetingDecisionOutcome.NoneReached, attendeeCount: 11)
             },
-            AvailabilityState.Available,
             AvailabilityState.Available,
             AvailabilityState.Available,
             AvailabilityState.Available,
@@ -31,8 +32,6 @@ public sealed class MeetingMetricsServiceTests
         Assert.Equal(TimeSpan.FromMinutes(45), metrics.AverageMeetingLength.Value);
         Assert.Equal(AvailabilityState.Available, metrics.AverageAttendeesPerMeeting.Availability);
         Assert.Equal(10m, metrics.AverageAttendeesPerMeeting.Value);
-        Assert.Equal(AvailabilityState.Available, metrics.AverageEmailRepliesPerMeeting.Availability);
-        Assert.Equal(8m, metrics.AverageEmailRepliesPerMeeting.Value);
         Assert.Equal(AvailabilityState.Available, metrics.LowTalkTimeMeetingPercentage.Availability);
         Assert.Equal(50m, metrics.LowTalkTimeMeetingPercentage.Value);
         Assert.Equal(AvailabilityState.Available, metrics.NoDecisionReachedMeetingPercentage.Availability);
@@ -40,7 +39,7 @@ public sealed class MeetingMetricsServiceTests
     }
 
     [Fact]
-    public void Calculate_DoesNotTriggerAttendeeAndReplyThresholdsWhenArithmeticMeanIsBelowTenButRoundsUp()
+    public void Calculate_DoesNotTriggerAttendeeThresholdWhenArithmeticMeanIsBelowTenButRoundsUp()
     {
         var service = new MeetingMetricsService();
         var userId = "user-1";
@@ -51,12 +50,10 @@ public sealed class MeetingMetricsServiceTests
                 userId,
                 TimeSpan.FromMinutes(5),
                 MeetingDecisionOutcome.Reached,
-                attendeeCount: index == 1 ? 9 : 10,
-                replyCount: index == 1 ? 9 : 10))
+                attendeeCount: index == 1 ? 9 : 10))
             .ToArray();
         var dataSet = new MeetingDataSet(
             meetings,
-            AvailabilityState.Available,
             AvailabilityState.Available,
             AvailabilityState.Available,
             AvailabilityState.Available,
@@ -69,13 +66,10 @@ public sealed class MeetingMetricsServiceTests
         Assert.Equal(10m, metrics.AverageAttendeesPerMeeting.Value);
         Assert.NotNull(metrics.AverageAttendeesPerMeeting.Threshold);
         Assert.False(metrics.AverageAttendeesPerMeeting.Threshold!.IsTriggered);
-        Assert.Equal(10m, metrics.AverageEmailRepliesPerMeeting.Value);
-        Assert.NotNull(metrics.AverageEmailRepliesPerMeeting.Threshold);
-        Assert.False(metrics.AverageEmailRepliesPerMeeting.Threshold!.IsTriggered);
     }
 
     [Fact]
-    public void Calculate_TriggersAttendeeAndReplyThresholdsAtAnExactTenPointZeroArithmeticMean()
+    public void Calculate_TriggersAttendeeThresholdAtAnExactTenPointZeroArithmeticMean()
     {
         var service = new MeetingMetricsService();
         var userId = "user-1";
@@ -86,12 +80,10 @@ public sealed class MeetingMetricsServiceTests
                 userId,
                 TimeSpan.FromMinutes(5),
                 MeetingDecisionOutcome.Reached,
-                attendeeCount: 10,
-                replyCount: 10))
+                attendeeCount: 10))
             .ToArray();
         var dataSet = new MeetingDataSet(
             meetings,
-            AvailabilityState.Available,
             AvailabilityState.Available,
             AvailabilityState.Available,
             AvailabilityState.Available,
@@ -104,9 +96,6 @@ public sealed class MeetingMetricsServiceTests
         Assert.Equal(10m, metrics.AverageAttendeesPerMeeting.Value);
         Assert.NotNull(metrics.AverageAttendeesPerMeeting.Threshold);
         Assert.True(metrics.AverageAttendeesPerMeeting.Threshold!.IsTriggered);
-        Assert.Equal(10m, metrics.AverageEmailRepliesPerMeeting.Value);
-        Assert.NotNull(metrics.AverageEmailRepliesPerMeeting.Threshold);
-        Assert.True(metrics.AverageEmailRepliesPerMeeting.Threshold!.IsTriggered);
     }
 
     [Fact]
@@ -115,7 +104,6 @@ public sealed class MeetingMetricsServiceTests
         var service = new MeetingMetricsService();
         var dataSet = new MeetingDataSet(
             Array.Empty<Meeting>(),
-            AvailabilityState.Available,
             AvailabilityState.Available,
             AvailabilityState.Available,
             AvailabilityState.Available,
@@ -132,28 +120,27 @@ public sealed class MeetingMetricsServiceTests
         Assert.Equal(AvailabilityState.Unknown, metrics.AverageAttendeesPerMeeting.Availability);
         Assert.Null(metrics.AverageAttendeesPerMeeting.Value);
         Assert.Equal("No meetings were recorded in the current period, so average attendee count is unknown.", metrics.AverageAttendeesPerMeeting.Message);
-        Assert.Equal(AvailabilityState.Unknown, metrics.AverageEmailRepliesPerMeeting.Availability);
-        Assert.Null(metrics.AverageEmailRepliesPerMeeting.Value);
-        Assert.Equal("No meetings were recorded in the current period, so average email replies are unknown.", metrics.AverageEmailRepliesPerMeeting.Message);
+        Assert.False(metrics.AverageAttendeesPerMeeting.IsDiagnosticRelevant);
         Assert.Equal(AvailabilityState.Unknown, metrics.LowTalkTimeMeetingPercentage.Availability);
         Assert.Equal("No meetings include talk-time data for the selected user.", metrics.LowTalkTimeMeetingPercentage.Message);
+        Assert.False(metrics.LowTalkTimeMeetingPercentage.IsDiagnosticRelevant);
         Assert.Equal(AvailabilityState.Unknown, metrics.NoDecisionReachedMeetingPercentage.Availability);
         Assert.Equal("No meetings include decision outcome data.", metrics.NoDecisionReachedMeetingPercentage.Message);
+        Assert.False(metrics.NoDecisionReachedMeetingPercentage.IsDiagnosticRelevant);
     }
 
     [Fact]
-    public void Calculate_ReturnsUnknownMetricAvailabilityWhenAttendeeAndReplyDataAreUnknown()
+    public void Calculate_ReturnsUnknownMetricAvailabilityWhenAttendeeDataIsUnknown()
     {
         var service = new MeetingMetricsService();
         var dataSet = new MeetingDataSet(
             new[]
             {
-                Meeting("m1", TimeSpan.FromMinutes(30), "user-1", TimeSpan.FromMinutes(5), MeetingDecisionOutcome.Reached, attendeeCount: 3, replyCount: 8)
+                Meeting("m1", TimeSpan.FromMinutes(30), "user-1", TimeSpan.FromMinutes(5), MeetingDecisionOutcome.Reached, attendeeCount: 3)
             },
             AvailabilityState.Available,
             AvailabilityState.Available,
             AvailabilityState.Available,
-            AvailabilityState.Unknown,
             AvailabilityState.Unknown,
             "Test provider",
             DateTimeOffset.Parse("2026-08-05T00:00:00Z"));
@@ -163,24 +150,20 @@ public sealed class MeetingMetricsServiceTests
         Assert.Equal(AvailabilityState.Unknown, metrics.AverageAttendeesPerMeeting.Availability);
         Assert.Equal("Attendee count data availability is unknown.", metrics.AverageAttendeesPerMeeting.Message);
         Assert.Null(metrics.AverageAttendeesPerMeeting.Value);
-        Assert.Equal(AvailabilityState.Unknown, metrics.AverageEmailRepliesPerMeeting.Availability);
-        Assert.Equal("Email reply data availability is unknown.", metrics.AverageEmailRepliesPerMeeting.Message);
-        Assert.Null(metrics.AverageEmailRepliesPerMeeting.Value);
     }
 
     [Fact]
-    public void Calculate_ReturnsUnavailableMetricAvailabilityWhenAttendeeAndReplyDataAreUnavailable()
+    public void Calculate_ReturnsUnavailableMetricAvailabilityWhenAttendeeDataIsUnavailable()
     {
         var service = new MeetingMetricsService();
         var dataSet = new MeetingDataSet(
             new[]
             {
-                Meeting("m1", TimeSpan.FromMinutes(30), "user-1", TimeSpan.FromMinutes(5), MeetingDecisionOutcome.Reached, attendeeCount: 3, replyCount: 8)
+                Meeting("m1", TimeSpan.FromMinutes(30), "user-1", TimeSpan.FromMinutes(5), MeetingDecisionOutcome.Reached, attendeeCount: 3)
             },
             AvailabilityState.Available,
             AvailabilityState.Available,
             AvailabilityState.Available,
-            AvailabilityState.Unavailable,
             AvailabilityState.Unavailable,
             "Test provider",
             DateTimeOffset.Parse("2026-08-05T00:00:00Z"));
@@ -190,9 +173,6 @@ public sealed class MeetingMetricsServiceTests
         Assert.Equal(AvailabilityState.Unavailable, metrics.AverageAttendeesPerMeeting.Availability);
         Assert.Equal("Attendee count data is not supported by the current provider.", metrics.AverageAttendeesPerMeeting.Message);
         Assert.Null(metrics.AverageAttendeesPerMeeting.Value);
-        Assert.Equal(AvailabilityState.Unavailable, metrics.AverageEmailRepliesPerMeeting.Availability);
-        Assert.Equal("Email reply data is not supported by the current provider.", metrics.AverageEmailRepliesPerMeeting.Message);
-        Assert.Null(metrics.AverageEmailRepliesPerMeeting.Value);
     }
 
     [Fact]
@@ -216,15 +196,254 @@ public sealed class MeetingMetricsServiceTests
         Assert.Equal(AvailabilityState.Unavailable, metrics.AverageAttendeesPerMeeting.Availability);
         Assert.Equal("WorkIQ is unavailable.", metrics.AverageAttendeesPerMeeting.Message);
         Assert.Null(metrics.AverageAttendeesPerMeeting.Value);
-        Assert.Equal(AvailabilityState.Unavailable, metrics.AverageEmailRepliesPerMeeting.Availability);
-        Assert.Equal("WorkIQ is unavailable.", metrics.AverageEmailRepliesPerMeeting.Message);
-        Assert.Null(metrics.AverageEmailRepliesPerMeeting.Value);
         Assert.Equal(AvailabilityState.Unavailable, metrics.LowTalkTimeMeetingPercentage.Availability);
         Assert.Equal("WorkIQ is unavailable.", metrics.LowTalkTimeMeetingPercentage.Message);
         Assert.Null(metrics.LowTalkTimeMeetingPercentage.Value);
         Assert.Equal(AvailabilityState.Unavailable, metrics.NoDecisionReachedMeetingPercentage.Availability);
         Assert.Equal("WorkIQ is unavailable.", metrics.NoDecisionReachedMeetingPercentage.Message);
         Assert.Null(metrics.NoDecisionReachedMeetingPercentage.Value);
+        Assert.Equal(AvailabilityState.Unavailable, metrics.FocusTimeLoss.Availability);
+        Assert.Equal(AvailabilityState.Unavailable, metrics.BackToBackMeetingCount.Availability);
+        Assert.Equal(AvailabilityState.Unavailable, metrics.RecurringMeetingHoursPercentage.Availability);
+        Assert.Equal(AvailabilityState.Unavailable, metrics.AttendeeOverlapMeetingPercentage.Availability);
+    }
+
+    [Fact]
+    public void Calculate_ReturnsCollaborationQualityMetrics()
+    {
+        var service = new MeetingMetricsService();
+        var userId = "user-1";
+        var localDate = new DateTime(2026, 8, 4);
+        var firstStart = ToUtc(localDate.AddHours(10));
+        var secondStart = ToUtc(localDate.AddHours(11));
+        var thirdStart = ToUtc(localDate.AddHours(18));
+        var meetings = new[]
+        {
+            CollaborationMeeting("m1", firstStart, TimeSpan.FromHours(1), userId, true, "attendee-a", "attendee-b"),
+            CollaborationMeeting("m2", secondStart, TimeSpan.FromHours(1), userId, true, "attendee-a", "attendee-c"),
+            CollaborationMeeting("m3", thirdStart, TimeSpan.FromHours(1), userId, false, "attendee-d")
+        };
+        var dataSet = new MeetingDataSet(
+            meetings,
+            AvailabilityState.Available,
+            AvailabilityState.Unavailable,
+            AvailabilityState.Unavailable,
+            AvailabilityState.Available,
+            "Test provider",
+            DateTimeOffset.Parse("2026-08-05T00:00:00Z"),
+            RecurrenceAvailability: AvailabilityState.Available,
+            AttendeeIdentityAvailability: AvailabilityState.Available);
+
+        var metrics = service.Calculate(dataSet, userId);
+
+        Assert.Equal(TimeSpan.FromHours(2), metrics.FocusTimeLoss.Value);
+        Assert.Equal(1, metrics.BackToBackMeetingCount.Value);
+        Assert.Equal(66.7m, metrics.RecurringMeetingHoursPercentage.Value);
+        Assert.Equal(66.7m, metrics.AttendeeOverlapMeetingPercentage.Value);
+    }
+
+    [Fact]
+    public void Calculate_UsesDiarizationToConfirmMinimumLowTalkPercentage()
+    {
+        var userId = "user-1";
+        var startsAt = DateTimeOffset.Parse("2026-08-04T14:00:00Z");
+        var meetings = new[]
+        {
+            CollaborationMeeting("m1", startsAt, TimeSpan.FromMinutes(30), userId, false, "attendee-a")
+                with { HasTranscript = true, UserSpeakingSegmentCount = 0 },
+            CollaborationMeeting("m2", startsAt.AddHours(1), TimeSpan.FromMinutes(30), userId, false, "attendee-b")
+                with { HasTranscript = true, UserSpeakingSegmentCount = 12 },
+            CollaborationMeeting("m3", startsAt.AddHours(2), TimeSpan.FromMinutes(30), userId, false, "attendee-c")
+                with { HasTranscript = false, UserSpeakingSegmentCount = null }
+        };
+        var dataSet = AvailableCollaborationDataSet(meetings) with
+        {
+            TalkTimeAvailability = AvailabilityState.Unavailable,
+            SpeakerDiarizationAvailability = AvailabilityState.Available,
+            DiarizedMeetingCount = 2,
+            ConfirmedZeroUserSpeechMeetingCount = 1
+        };
+
+        var metrics = new MeetingMetricsService().Calculate(dataSet, userId);
+
+        Assert.Equal(AvailabilityState.Available, metrics.LowTalkTimeMeetingPercentage.Availability);
+        Assert.Equal(50m, metrics.LowTalkTimeMeetingPercentage.Value);
+        Assert.Equal(
+            "Informational means you spoke for less than 10% of the meeting. Minimum confirmed proxy only: without segment timing, this value counts only diarized meetings with no speech attributed to you and may undercount other under-10% meetings. Coverage warning: Some meetings lacked diarization; this percentage covers diarized meetings only.",
+            metrics.LowTalkTimeMeetingPercentage.Message);
+    }
+
+    [Fact]
+    public void Calculate_DescribesNativeInformationalMetricAsExactTalkTimeComputation()
+    {
+        var dataSet = AvailableCollaborationDataSet(
+            [
+                CollaborationMeeting("m1", DateTimeOffset.Parse("2026-08-04T14:00:00Z"), TimeSpan.FromMinutes(100), "user-1", false)
+                    with
+                    {
+                        Participants =
+                        [
+                            new MeetingParticipant("user-1", "Selected user", TimeSpan.FromMinutes(5)),
+                            new MeetingParticipant("attendee-a", "Attendee A", TimeSpan.FromMinutes(95))
+                        ]
+                    }
+            ]) with
+            {
+                TalkTimeAvailability = AvailabilityState.Available
+            };
+
+        var metrics = new MeetingMetricsService().Calculate(dataSet, "user-1");
+
+        Assert.Equal(AvailabilityState.Available, metrics.LowTalkTimeMeetingPercentage.Availability);
+        Assert.Equal(100m, metrics.LowTalkTimeMeetingPercentage.Value);
+        Assert.Equal(
+            "Informational means you spoke for less than 10% of the meeting. Calculated exactly from native talk-time totals.",
+            metrics.LowTalkTimeMeetingPercentage.Message);
+    }
+
+    [Fact]
+    public void Calculate_DoesNotDoubleCountOverlappingMeetings()
+    {
+        var service = new MeetingMetricsService();
+        var userId = "user-1";
+        var localDate = new DateTime(2026, 8, 4);
+        var meetings = new[]
+        {
+            CollaborationMeeting("m1", ToUtc(localDate.AddHours(10)), TimeSpan.FromHours(1), userId, false, "attendee-a"),
+            CollaborationMeeting("m2", ToUtc(localDate.AddHours(10).AddMinutes(30)), TimeSpan.FromMinutes(10), userId, false, "attendee-b"),
+            CollaborationMeeting("m3", ToUtc(localDate.AddHours(10).AddMinutes(45)), TimeSpan.FromMinutes(30), userId, false, "attendee-c")
+        };
+        var dataSet = AvailableCollaborationDataSet(meetings);
+
+        var metrics = service.Calculate(dataSet, userId);
+
+        Assert.Equal(TimeSpan.FromMinutes(75), metrics.FocusTimeLoss.Value);
+        Assert.Equal(0, metrics.BackToBackMeetingCount.Value);
+    }
+
+    [Fact]
+    public void Calculate_UsesConfiguredWorkTimeZone()
+    {
+        var service = new MeetingMetricsService(Options.Create(new WorkIqOptions { TimeZone = "America/New_York" }));
+        var meeting = CollaborationMeeting(
+            "m1",
+            DateTimeOffset.Parse("2026-08-04T18:00:00Z"),
+            TimeSpan.FromHours(1),
+            "user-1",
+            false,
+            "attendee-a");
+
+        var metrics = service.Calculate(AvailableCollaborationDataSet([meeting]), "user-1");
+
+        Assert.Equal(TimeSpan.FromHours(1), metrics.FocusTimeLoss.Value);
+    }
+
+    [Fact]
+    public void Calculate_AveragesReceivedEmailsAcrossAllCalendarDays()
+    {
+        var dataSet = AvailableCollaborationDataSet([]) with
+        {
+            EmailVolumeAvailability = AvailabilityState.Available,
+            EmailsReceivedCount = 124,
+            EmailCalendarDayCount = 4
+        };
+
+        var metrics = new MeetingMetricsService().Calculate(dataSet, "user-1");
+
+        Assert.Equal(AvailabilityState.Available, metrics.AverageEmailsReceivedPerDay.Availability);
+        Assert.Equal(31m, metrics.AverageEmailsReceivedPerDay.Value);
+    }
+
+    [Fact]
+    public void Calculate_ComputesPercentOfEmailConversationsWithMoreThanTenReplies()
+    {
+        var dataSet = AvailableCollaborationDataSet([]) with
+        {
+            EmailConversationAnalysisAvailability = AvailabilityState.Available,
+            EmailConversationCount = 20,
+            ProtractedEmailConversationCount = 5
+        };
+
+        var metrics = new MeetingMetricsService().Calculate(dataSet, "user-1");
+
+        Assert.Equal(AvailabilityState.Available, metrics.ProtractedEmailConversationPercentage.Availability);
+        Assert.Equal(25m, metrics.ProtractedEmailConversationPercentage.Value);
+    }
+
+    [Fact]
+    public void Calculate_UsesContentAnalysisForNoDecisionPercentage()
+    {
+        var meetings = new[]
+        {
+            CollaborationMeeting("m1", DateTimeOffset.Parse("2026-08-04T14:00:00Z"), TimeSpan.FromMinutes(30), "user-1", false),
+            CollaborationMeeting("m2", DateTimeOffset.Parse("2026-08-04T15:00:00Z"), TimeSpan.FromMinutes(30), "user-1", false),
+            CollaborationMeeting("m3", DateTimeOffset.Parse("2026-08-04T16:00:00Z"), TimeSpan.FromMinutes(30), "user-1", false)
+        };
+        var dataSet = AvailableCollaborationDataSet(meetings) with
+        {
+            DecisionAvailability = AvailabilityState.Unavailable,
+            DecisionAnalysisAvailability = AvailabilityState.Available,
+            DecisionRelevantMeetingCount = 2,
+            NoDecisionReachedMeetingCount = 1
+        };
+
+        var metrics = new MeetingMetricsService().Calculate(dataSet, "user-1");
+
+        Assert.Equal(AvailabilityState.Available, metrics.NoDecisionReachedMeetingPercentage.Availability);
+        Assert.Equal(50m, metrics.NoDecisionReachedMeetingPercentage.Value);
+        Assert.Equal(
+            "Coverage warning: Some meetings lacked decision content or were not decision-oriented; this percentage covers decision-relevant meetings with accessible content only.",
+            metrics.NoDecisionReachedMeetingPercentage.Message);
+    }
+
+    [Fact]
+    public void Calculate_ReturnsDistinctUnknownMessageWhenAccessibleDecisionContentHasNoRelevantMeetings()
+    {
+        var meetings = new[]
+        {
+            CollaborationMeeting("m1", DateTimeOffset.Parse("2026-08-04T14:00:00Z"), TimeSpan.FromMinutes(30), "user-1", false),
+            CollaborationMeeting("m2", DateTimeOffset.Parse("2026-08-04T15:00:00Z"), TimeSpan.FromMinutes(30), "user-1", false)
+        };
+        var dataSet = AvailableCollaborationDataSet(meetings) with
+        {
+            DecisionAvailability = AvailabilityState.Unavailable,
+            DecisionAnalysisAvailability = AvailabilityState.Available,
+            DecisionRelevantMeetingCount = 0,
+            NoDecisionReachedMeetingCount = 0
+        };
+
+        var metrics = new MeetingMetricsService().Calculate(dataSet, "user-1");
+
+        Assert.Equal(AvailabilityState.Unknown, metrics.NoDecisionReachedMeetingPercentage.Availability);
+        Assert.Null(metrics.NoDecisionReachedMeetingPercentage.Value);
+        Assert.Equal(
+            "No decision-relevant meetings include accessible content for decision analysis.",
+            metrics.NoDecisionReachedMeetingPercentage.Message);
+    }
+
+    [Fact]
+    public void Calculate_ReturnsDecisionRelevantUnknownMessageWhenNativeDecisionOutcomesAreOnlyNotApplicable()
+    {
+        var dataSet = new MeetingDataSet(
+            new[]
+            {
+                Meeting("m1", TimeSpan.FromMinutes(30), "user-1", TimeSpan.FromMinutes(5), MeetingDecisionOutcome.NotApplicable),
+                Meeting("m2", TimeSpan.FromMinutes(45), "user-1", TimeSpan.FromMinutes(10), MeetingDecisionOutcome.NotApplicable)
+            },
+            AvailabilityState.Available,
+            AvailabilityState.Available,
+            AvailabilityState.Available,
+            AvailabilityState.Available,
+            "Test provider",
+            DateTimeOffset.Parse("2026-08-05T00:00:00Z"));
+
+        var metrics = new MeetingMetricsService().Calculate(dataSet, "user-1");
+
+        Assert.Equal(AvailabilityState.Unknown, metrics.NoDecisionReachedMeetingPercentage.Availability);
+        Assert.Null(metrics.NoDecisionReachedMeetingPercentage.Value);
+        Assert.Equal(
+            "No decision-relevant meetings include native decision outcome data.",
+            metrics.NoDecisionReachedMeetingPercentage.Message);
     }
 
     private static Meeting Meeting(
@@ -233,8 +452,7 @@ public sealed class MeetingMetricsServiceTests
         string userId,
         TimeSpan? talkTime,
         MeetingDecisionOutcome decisionOutcome,
-        int attendeeCount = 1,
-        int? replyCount = null)
+        int attendeeCount = 1)
     {
         var startsAt = DateTimeOffset.Parse("2026-08-04T10:00:00Z");
         var participants = Enumerable.Range(1, attendeeCount)
@@ -249,7 +467,42 @@ public sealed class MeetingMetricsServiceTests
             startsAt,
             startsAt.Add(duration),
             participants,
-            new MeetingDecision(decisionOutcome),
-            replyCount.HasValue ? new MeetingEmailThread(replyCount.Value) : null);
+            new MeetingDecision(decisionOutcome));
     }
+
+    private static Meeting CollaborationMeeting(
+        string id,
+        DateTimeOffset startsAtUtc,
+        TimeSpan duration,
+        string userId,
+        bool isRecurring,
+        params string[] attendeeIds) =>
+        new(
+            id,
+            id,
+            startsAtUtc,
+            startsAtUtc.Add(duration),
+            new[] { new MeetingParticipant(userId, "User") }
+                .Concat(attendeeIds.Select(attendeeId => new MeetingParticipant(attendeeId, "Attendee")))
+                .ToArray(),
+            new MeetingDecision(MeetingDecisionOutcome.Unknown),
+            IsRecurring: isRecurring);
+
+    private static DateTimeOffset ToUtc(DateTime localTime)
+    {
+        var local = DateTime.SpecifyKind(localTime, DateTimeKind.Unspecified);
+        return new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local)).ToUniversalTime();
+    }
+
+    private static MeetingDataSet AvailableCollaborationDataSet(IReadOnlyList<Meeting> meetings) =>
+        new(
+            meetings,
+            AvailabilityState.Available,
+            AvailabilityState.Unavailable,
+            AvailabilityState.Unavailable,
+            AvailabilityState.Available,
+            "Test provider",
+            DateTimeOffset.Parse("2026-08-05T00:00:00Z"),
+            RecurrenceAvailability: AvailabilityState.Available,
+            AttendeeIdentityAvailability: AvailabilityState.Available);
 }

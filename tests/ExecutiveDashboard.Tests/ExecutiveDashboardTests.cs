@@ -55,35 +55,18 @@ public sealed class MeetingMetricsServiceTests
     }
 
     [Fact]
-    public void Calculate_ReturnsAverageAttendeesAndReplies()
+    public void Calculate_ReturnsAverageAttendees()
     {
         var service = new MeetingMetricsService();
         var dataSet = TestData.CreateAvailableDataSet(
-            TestData.CreateMeeting("meeting-1", "Small thread", 30, 5, MeetingDecisionOutcome.Reached, "Done.", attendeeCount: 9, replyCount: 9),
-            TestData.CreateMeeting("meeting-2", "Threshold thread", 30, 5, MeetingDecisionOutcome.Reached, "Done.", attendeeCount: 10, replyCount: 10),
-            TestData.CreateMeeting("meeting-3", "Large thread", 30, 5, MeetingDecisionOutcome.Reached, "Done.", attendeeCount: 11, replyCount: 11));
+            TestData.CreateMeeting("meeting-1", "Small thread", 30, 5, MeetingDecisionOutcome.Reached, "Done.", attendeeCount: 9),
+            TestData.CreateMeeting("meeting-2", "Threshold thread", 30, 5, MeetingDecisionOutcome.Reached, "Done.", attendeeCount: 10),
+            TestData.CreateMeeting("meeting-3", "Large thread", 30, 5, MeetingDecisionOutcome.Reached, "Done.", attendeeCount: 11));
 
         var metrics = service.Calculate(dataSet, TestData.UserId);
 
         Assert.Equal(AvailabilityState.Available, metrics.AverageAttendeesPerMeeting.Availability);
         Assert.Equal(10m, metrics.AverageAttendeesPerMeeting.Value);
-        Assert.Equal(AvailabilityState.Available, metrics.AverageEmailRepliesPerMeeting.Availability);
-        Assert.Equal(10m, metrics.AverageEmailRepliesPerMeeting.Value);
-    }
-
-    [Fact]
-    public void Calculate_ReturnsUnknownForPartialEmailReplyCoverage()
-    {
-        var service = new MeetingMetricsService();
-        var dataSet = TestData.CreateAvailableDataSet(
-            TestData.CreateMeeting("meeting-1", "Captured thread", 30, 5, MeetingDecisionOutcome.Reached, "Done.", replyCount: 8),
-            TestData.CreateMeeting("meeting-2", "Missing thread", 30, 5, MeetingDecisionOutcome.Reached, "Done.", replyCount: null));
-
-        var metrics = service.Calculate(dataSet, TestData.UserId);
-
-        Assert.Equal(AvailabilityState.Unknown, metrics.AverageEmailRepliesPerMeeting.Availability);
-        Assert.Null(metrics.AverageEmailRepliesPerMeeting.Value);
-        Assert.Equal("Some meetings are missing aggregate email reply counts.", metrics.AverageEmailRepliesPerMeeting.Message);
     }
 
     [Fact]
@@ -92,7 +75,6 @@ public sealed class MeetingMetricsServiceTests
         var service = new MeetingMetricsService();
         var dataSet = new MeetingDataSet(
             Array.Empty<Meeting>(),
-            AvailabilityState.Available,
             AvailabilityState.Available,
             AvailabilityState.Available,
             AvailabilityState.Available,
@@ -109,9 +91,6 @@ public sealed class MeetingMetricsServiceTests
         Assert.Equal(AvailabilityState.Unknown, metrics.AverageAttendeesPerMeeting.Availability);
         Assert.Null(metrics.AverageAttendeesPerMeeting.Value);
         Assert.Equal("No meetings were recorded in the current period, so average attendee count is unknown.", metrics.AverageAttendeesPerMeeting.Message);
-        Assert.Equal(AvailabilityState.Unknown, metrics.AverageEmailRepliesPerMeeting.Availability);
-        Assert.Null(metrics.AverageEmailRepliesPerMeeting.Value);
-        Assert.Equal("No meetings were recorded in the current period, so average email replies are unknown.", metrics.AverageEmailRepliesPerMeeting.Message);
         Assert.Equal(AvailabilityState.Unknown, metrics.LowTalkTimeMeetingPercentage.Availability);
         Assert.Equal("No meetings include talk-time data for the selected user.", metrics.LowTalkTimeMeetingPercentage.Message);
         Assert.Equal(AvailabilityState.Unknown, metrics.NoDecisionReachedMeetingPercentage.Availability);
@@ -128,7 +107,6 @@ public sealed class MeetingMetricsServiceTests
             AvailabilityState.Unknown,
             AvailabilityState.Unknown,
             AvailabilityState.Unknown,
-            AvailabilityState.Unknown,
             "WorkIQ",
             TestData.FixedRetrievedAtUtc,
             "WorkIQ availability is unknown.");
@@ -138,7 +116,6 @@ public sealed class MeetingMetricsServiceTests
         AssertUnknown(metrics.WeeklyMeetingCount);
         AssertUnknown(metrics.AverageMeetingLength);
         AssertUnknown(metrics.AverageAttendeesPerMeeting);
-        AssertUnknown(metrics.AverageEmailRepliesPerMeeting);
         AssertUnknown(metrics.LowTalkTimeMeetingPercentage);
         AssertUnknown(metrics.NoDecisionReachedMeetingPercentage);
     }
@@ -159,33 +136,26 @@ public sealed class DashboardServiceTests
     {
         var now = TestData.FixedRetrievedAtUtc;
         var dataSet = TestData.CreateAvailableDataSet(
-            TestData.CreateMeeting("meeting-1", "Weekly operating review", 30, 5, MeetingDecisionOutcome.Reached, "Approved rollout.", dayOffset: -2, attendeeCount: 9, replyCount: 4),
-            TestData.CreateMeeting("meeting-2", "Pipeline risk review", 60, 18, MeetingDecisionOutcome.NoneReached, "Deferred launch sequencing.", dayOffset: -1, attendeeCount: 11, replyCount: 12));
+            TestData.CreateMeeting("meeting-1", "Weekly operating review", 30, 5, MeetingDecisionOutcome.Reached, "Approved rollout.", dayOffset: -2, attendeeCount: 9),
+            TestData.CreateMeeting("meeting-2", "Pipeline risk review", 60, 18, MeetingDecisionOutcome.NoneReached, "Deferred launch sequencing.", dayOffset: -1, attendeeCount: 11));
         var provider = new StubMeetingDataProvider(dataSet);
         var service = CreateDashboardService(provider, now);
 
         var dashboard = await service.GetDashboardAsync();
 
-        Assert.Equal(new DateTimeOffset(2026, 8, 3, 0, 0, 0, TimeSpan.Zero), dashboard.PeriodStartsAtUtc);
-        Assert.Equal(now, dashboard.PeriodEndsAtUtc);
+        Assert.Equal(new DateTimeOffset(2026, 7, 27, 0, 0, 0, TimeSpan.Zero), dashboard.PeriodStartsAtUtc);
+        Assert.Equal(new DateTimeOffset(2026, 8, 3, 0, 0, 0, TimeSpan.Zero), dashboard.PeriodEndsAtUtc);
         Assert.Equal("Test source", dashboard.SourceName);
         Assert.Equal(AvailabilityState.Available, dashboard.SourceAvailability);
         Assert.Equal("Test source metrics", dashboard.SourceMessage);
         Assert.False(dashboard.IsSampleData);
         Assert.Equal("2", FindCard(dashboard.Metrics, "Meetings this week").Value);
         Assert.Equal("45 min", FindCard(dashboard.Metrics, "Average meeting length").Value);
-        Assert.Equal("10", FindCard(dashboard.Metrics, "Average attendees per meeting").Value);
-        Assert.Equal("Excessive meetings have 10 or more attendees.", FindCard(dashboard.Metrics, "Average attendees per meeting").ThresholdGuidance);
-        Assert.Equal("8", FindCard(dashboard.Metrics, "Average email replies per meeting").Value);
-        Assert.Equal("Long threads have 10 or more replies.", FindCard(dashboard.Metrics, "Average email replies per meeting").ThresholdGuidance);
-        Assert.Equal("0%", FindCard(dashboard.Metrics, "Percent under 10% talk time").Value);
+        Assert.DoesNotContain(dashboard.Metrics, metric => metric.Title == "Average email replies per meeting");
+        Assert.Equal("0%", FindCard(dashboard.Metrics, "Percent informational meetings").Value);
         Assert.Equal("50%", FindCard(dashboard.Metrics, "Percent with no decision reached").Value);
-        Assert.Equal("Excessive attendees", FindCard(dashboard.Metrics, "Average attendees per meeting").Threshold!.Label);
-        Assert.True(FindCard(dashboard.Metrics, "Average attendees per meeting").Threshold!.IsTriggered);
-        Assert.Equal("Long email thread", FindCard(dashboard.Metrics, "Average email replies per meeting").Threshold!.Label);
-        Assert.False(FindCard(dashboard.Metrics, "Average email replies per meeting").Threshold!.IsTriggered);
-        Assert.Equal(new DateTimeOffset(2026, 8, 3, 0, 0, 0, TimeSpan.Zero), provider.LastQuery!.StartsAtUtc);
-        Assert.Equal(now, provider.LastQuery!.EndsAtUtc);
+        Assert.Equal(new DateTimeOffset(2026, 7, 27, 0, 0, 0, TimeSpan.Zero), provider.LastQuery!.StartsAtUtc);
+        Assert.Equal(new DateTimeOffset(2026, 8, 3, 0, 0, 0, TimeSpan.Zero), provider.LastQuery!.EndsAtUtc);
         Assert.Equal(TestData.UserId, provider.LastQuery!.UserId);
     }
 
@@ -233,15 +203,13 @@ internal static class TestData
 
     public static MeetingDataSet CreateAvailableDataSet(
         IEnumerable<Meeting> meetings,
-        AvailabilityState attendeeAvailability = AvailabilityState.Available,
-        AvailabilityState emailReplyAvailability = AvailabilityState.Available) =>
+        AvailabilityState attendeeAvailability = AvailabilityState.Available) =>
         new(
             meetings.ToArray(),
             AvailabilityState.Available,
             AvailabilityState.Available,
             AvailabilityState.Available,
             attendeeAvailability,
-            emailReplyAvailability,
             "Test source",
             FixedRetrievedAtUtc,
             "Test source metrics");
@@ -256,8 +224,7 @@ internal static class TestData
         MeetingDecisionOutcome decisionOutcome,
         string decisionSummary,
         int dayOffset = 0,
-        int attendeeCount = 2,
-        int? replyCount = 0)
+        int attendeeCount = 2)
     {
         var startsAtUtc = FixedRetrievedAtUtc.AddDays(dayOffset);
         var participants = Enumerable.Range(1, attendeeCount)
@@ -272,8 +239,7 @@ internal static class TestData
             startsAtUtc,
             startsAtUtc.AddMinutes(durationMinutes),
             participants,
-            new MeetingDecision(decisionOutcome, decisionSummary),
-            replyCount.HasValue ? new MeetingEmailThread(replyCount.Value) : null);
+            new MeetingDecision(decisionOutcome, decisionSummary));
     }
 }
 

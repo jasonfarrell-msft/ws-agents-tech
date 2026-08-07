@@ -16,7 +16,8 @@ public sealed record DashboardRequestContext(
     bool CanSignOut,
     LiveDataAccessMode LiveDataAccessMode,
     string LiveSourceName,
-    string LiveSourceDetail);
+    string LiveSourceDetail,
+    SampleProfile SelectedSampleProfile = SampleProfile.HealthyWeek);
 
 public interface IDashboardRequestContextAccessor
 {
@@ -32,6 +33,7 @@ public sealed class DashboardRequestContextAccessor(
     {
         var httpContext = httpContextAccessor.HttpContext;
         var selectedMode = MissionControlModeCookie.Read(httpContext?.Request.Cookies);
+        var selectedSampleProfile = SampleProfileCookie.Read(httpContext?.Request.Cookies);
         var isAuthenticated = httpContext?.User.Identity?.IsAuthenticated == true;
         var isLocalMachineRequest = IsLocalMachineRequest(httpContext);
         var canSignIn = startupState.EntraSignInEnabled && !isAuthenticated;
@@ -55,7 +57,8 @@ public sealed class DashboardRequestContextAccessor(
             canSignOut,
             startupState.LiveDataAccessMode,
             startupState.LiveSourceName,
-            BuildLiveSourceDetail(selectedMode, startupState, isAuthenticated, canUseLiveData));
+            BuildLiveSourceDetail(selectedMode, startupState, isAuthenticated, canUseLiveData),
+            selectedSampleProfile);
     }
 
     private static (string QueryUserId, string EffectiveUserLabel) ResolveUserIdentity(

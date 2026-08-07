@@ -17,9 +17,6 @@ public sealed record MeetingDecision(
     MeetingDecisionOutcome Outcome,
     string? Summary = null);
 
-public sealed record MeetingEmailThread(
-    int ReplyCount);
-
 public sealed record Meeting(
     string Id,
     string Title,
@@ -27,7 +24,9 @@ public sealed record Meeting(
     DateTimeOffset EndsAtUtc,
     IReadOnlyList<MeetingParticipant> Participants,
     MeetingDecision Decision,
-    MeetingEmailThread? EmailThread = null)
+    bool? IsRecurring = null,
+    bool? HasTranscript = null,
+    int? UserSpeakingSegmentCount = null)
 {
     public TimeSpan Duration => EndsAtUtc - StartsAtUtc;
 }
@@ -43,11 +42,26 @@ public sealed record MeetingDataSet(
     AvailabilityState TalkTimeAvailability,
     AvailabilityState DecisionAvailability,
     AvailabilityState AttendeeAvailability,
-    AvailabilityState EmailReplyAvailability,
     string SourceName,
     DateTimeOffset RetrievedAtUtc,
     string? Message = null,
-    bool IsSampleData = false)
+    bool IsSampleData = false,
+    AvailabilityState RecurrenceAvailability = AvailabilityState.Unknown,
+    AvailabilityState AttendeeIdentityAvailability = AvailabilityState.Unknown,
+    AvailabilityState SpeakerDiarizationAvailability = AvailabilityState.Unknown,
+    int? DiarizedMeetingCount = null,
+    int? ConfirmedZeroUserSpeechMeetingCount = null,
+    AvailabilityState EmailVolumeAvailability = AvailabilityState.Unknown,
+    int? EmailsReceivedCount = null,
+    int? EmailCalendarDayCount = null,
+    AvailabilityState DecisionAnalysisAvailability = AvailabilityState.Unknown,
+    int? DecisionRelevantMeetingCount = null,
+    int? NoDecisionReachedMeetingCount = null,
+    AvailabilityState EmailConversationAnalysisAvailability = AvailabilityState.Unavailable,
+    int? EmailConversationCount = null,
+    int? ProtractedEmailConversationCount = null,
+    string? SampleProfileTitle = null,
+    string? SampleProfileDescription = null)
 {
     public static MeetingDataSet Unavailable(
         MeetingQuery query,
@@ -59,8 +73,10 @@ public sealed record MeetingDataSet(
             AvailabilityState.Unavailable,
             AvailabilityState.Unavailable,
             AvailabilityState.Unavailable,
-            AvailabilityState.Unavailable,
             sourceName,
             retrievedAtUtc,
-            message);
+            message,
+            RecurrenceAvailability: AvailabilityState.Unavailable,
+            AttendeeIdentityAvailability: AvailabilityState.Unavailable,
+            SpeakerDiarizationAvailability: AvailabilityState.Unavailable);
 }

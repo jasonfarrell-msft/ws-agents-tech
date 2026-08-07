@@ -30,7 +30,7 @@ public sealed class WorkIqStartupAndParsingTests
             Assert.True(dataSet.IsSampleData);
             Assert.Equal(AvailabilityState.Available, dataSet.Availability);
             Assert.Equal("Deterministic sample provider", dataSet.SourceName);
-            Assert.Equal(4, dataSet.Meetings.Count);
+            Assert.Equal(5, dataSet.Meetings.Count);
             Assert.Contains("Sample data only", dataSet.Message);
         }
     }

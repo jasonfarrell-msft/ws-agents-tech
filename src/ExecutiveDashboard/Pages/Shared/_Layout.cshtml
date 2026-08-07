@@ -7,31 +7,36 @@
     var currentPage = ViewContext.ActionDescriptor.RouteValues.TryGetValue("page", out var routePage)
         ? routePage
         : string.Empty;
-    var selectedWeekRouteValue = ViewContext.HttpContext.Request.Query.TryGetValue("week", out var weekValues)
-        ? weekValues.ToString()
-        : null;
+    var selectedWeekRouteValue = ViewData["SelectedWeekValue"] as string;
     selectedWeekRouteValue = string.IsNullOrWhiteSpace(selectedWeekRouteValue) ? null : selectedWeekRouteValue;
+    var maxSelectableWeekValue = ViewData["MaxSelectableWeekValue"] as string;
+    var periodLabel = ViewData["PeriodLabel"] as string;
     var isDashboardPage = string.Equals(currentPage, "/Index", StringComparison.OrdinalIgnoreCase);
     var isMissionControlPage = string.Equals(currentPage, "/MissionControl", StringComparison.OrdinalIgnoreCase);
 
     static (string Label, string CssClass, string Detail) GetWorkIqStatus(DashboardRequestContext context)
     {
+        if (context.SelectedMode == DashboardOperatingMode.Sample)
+        {
+            return ("Sample mode", "sample", "Using deterministic sample data.");
+        }
+
         if (context.LiveDataAccessMode == LiveDataAccessMode.None)
         {
-            return ("Unavailable", "unavailable", context.LiveSourceDetail);
+            return ("Live mode", "unavailable", context.LiveSourceDetail);
         }
 
         if (context.SelectedMode == DashboardOperatingMode.Live && context.CanUseLiveData)
         {
-            return ("Connected", "live", $"Source: {context.LiveSourceName} · {context.EffectiveUserLabel}");
+            return ("Live mode", "live", $"Source: {context.LiveSourceName} · {context.EffectiveUserLabel}");
         }
 
         if (context.SelectedMode == DashboardOperatingMode.Live)
         {
-            return ("Action required", "unknown", context.LiveSourceDetail);
+            return ("Live mode", "unknown", context.LiveSourceDetail);
         }
 
-        return ("Ready", "sample", $"Source available: {context.LiveSourceName}. Switch to Live in Mission Control when needed.");
+        return ("Live mode", "unknown", context.LiveSourceDetail);
     }
 }
 <!DOCTYPE html>
@@ -48,14 +53,22 @@
 <body>
     <header class="app-header">
         <div class="container app-header__inner">
-            <a class="app-brand" asp-area="" asp-page="/Index">Executive Dashboard</a>
-            <p class="app-tagline">Aggregate weekly meeting intelligence</p>
-            @if (User.Identity?.IsAuthenticated == true)
-            {
-                <div class="app-auth">
-                    <span class="app-auth__user">Signed in as @User.Identity.Name</span>
+            <div class="app-header__identity">
+                <a class="app-brand" asp-area="" asp-page="/Index">Executive Dashboard</a>
+                <p class="app-tagline">Aggregate weekly meeting intelligence</p>
+            </div>
+            <div class="app-header__right">
+                <div class="app-navbar__status" role="status" aria-live="polite">
+                    <span class="source-state__badge source-state__badge--@workIqStatusCssClass">WorkIQ @workIqStatusLabel</span>
+                    <span class="app-navbar__status-detail">@workIqStatusDetail</span>
                 </div>
-            }
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <div class="app-auth">
+                        <span class="app-auth__user">Signed in as @User.Identity.Name</span>
+                    </div>
+                }
+            </div>
         </div>
     </header>
     <nav class="app-navbar" aria-label="Primary">
@@ -72,10 +85,24 @@
                    asp-route-week="@selectedWeekRouteValue"
                    aria-current="@(isMissionControlPage ? "page" : null)">Mission Control</a>
             </div>
-            <div class="app-navbar__status" role="status" aria-live="polite">
-                <span class="source-state__badge source-state__badge--@workIqStatusCssClass">WorkIQ @workIqStatusLabel</span>
-                <span class="app-navbar__status-detail">@workIqStatusDetail</span>
-            </div>
+            @if (isDashboardPage)
+            {
+                <form method="get" class="week-picker week-picker--compact" data-immediate-loading>
+                    <label for="dashboard-week-picker">Completed reporting week</label>
+                    <span class="week-picker__range">@periodLabel</span>
+                    <input type="week"
+                           id="dashboard-week-picker"
+                           name="week"
+                           value="@selectedWeekRouteValue"
+                           max="@maxSelectableWeekValue"
+                           required
+                           data-submit-on-change />
+                    <button type="submit" class="btn btn-primary btn-sm">Refresh</button>
+                    <span class="week-picker__loading" data-loading-indicator role="status" aria-live="polite" hidden>
+                        Loading…
+                    </span>
+                </form>
+            }
         </div>
     </nav>
 

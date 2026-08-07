@@ -36,7 +36,7 @@ public static class DashboardStartupExtensions
         builder.Services.PostConfigure<WorkIqOptions>(options => ApplyResolvedSelection(options, configuredSelection, liveConfiguration.LiveDataAccessMode));
         builder.Services.Configure<WorkIqCliOptions>(builder.Configuration.GetSection(WorkIqCliOptions.SectionName));
         builder.Services.AddSingleton(TimeProvider.System);
-        builder.Services.AddSingleton<SampleMeetingDataProvider>();
+        builder.Services.AddScoped<SampleMeetingDataProvider>();
         builder.Services.AddSingleton(startupState);
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<IDashboardRequestContextAccessor, DashboardRequestContextAccessor>();
