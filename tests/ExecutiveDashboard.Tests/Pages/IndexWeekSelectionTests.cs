@@ -2,13 +2,17 @@ using ExecutiveDashboard.Models;
 using ExecutiveDashboard.Pages;
 using ExecutiveDashboard.Providers;
 using ExecutiveDashboard.Services;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 
 namespace ExecutiveDashboard.Tests.Pages;
 
 public sealed class IndexWeekSelectionTests
 {
     [Fact]
-    public async Task OnGetAsync_ParsesWeekPickerValueAndRequestsThatWeek()
+    public void OnGet_ParsesWeekPickerValueWithoutRequestingMetrics()
     {
         var now = new DateTimeOffset(2026, 8, 6, 15, 0, 0, TimeSpan.Zero);
         var currentWeekStart = new DateTimeOffset(2026, 8, 3, 0, 0, 0, TimeSpan.Zero);
@@ -18,15 +22,15 @@ public sealed class IndexWeekSelectionTests
             Week = "2026-W31"
         };
 
-        await model.OnGetAsync(CancellationToken.None);
+        model.OnGet();
 
-        Assert.Equal(new DateTimeOffset(2026, 7, 27, 0, 0, 0, TimeSpan.Zero), service.LastRequestedWeekStartUtc);
+        Assert.Null(service.LastRequestedWeekStartUtc);
         Assert.Equal("2026-W31", model.SelectedWeekValue);
         Assert.Equal("2026-W31", model.MaxSelectableWeekValue);
     }
 
     [Fact]
-    public async Task OnGetAsync_FallsBackToLastCompletedWeekWhenWeekValueIsInvalid()
+    public void OnGet_FallsBackToLastCompletedWeekWhenWeekValueIsInvalid()
     {
         var now = new DateTimeOffset(2026, 8, 6, 15, 0, 0, TimeSpan.Zero);
         var currentWeekStart = new DateTimeOffset(2026, 8, 3, 0, 0, 0, TimeSpan.Zero);
@@ -36,14 +40,14 @@ public sealed class IndexWeekSelectionTests
             Week = "2026-W54"
         };
 
-        await model.OnGetAsync(CancellationToken.None);
+        model.OnGet();
 
-        Assert.Equal(currentWeekStart.AddDays(-7), service.LastRequestedWeekStartUtc);
+        Assert.Null(service.LastRequestedWeekStartUtc);
         Assert.Equal("2026-W31", model.SelectedWeekValue);
     }
 
     [Fact]
-    public async Task OnGetAsync_ClampsCurrentAndFutureWeekRequestsToLastCompletedWeek()
+    public void OnGet_ClampsCurrentAndFutureWeekRequestsToLastCompletedWeek()
     {
         var now = new DateTimeOffset(2026, 8, 6, 15, 0, 0, TimeSpan.Zero);
         var currentWeekStart = new DateTimeOffset(2026, 8, 3, 0, 0, 0, TimeSpan.Zero);
@@ -53,9 +57,9 @@ public sealed class IndexWeekSelectionTests
             Week = "2026-W32"
         };
 
-        await model.OnGetAsync(CancellationToken.None);
+        model.OnGet();
 
-        Assert.Equal(currentWeekStart.AddDays(-7), service.LastRequestedWeekStartUtc);
+        Assert.Null(service.LastRequestedWeekStartUtc);
         Assert.Equal("2026-W31", model.SelectedWeekValue);
     }
 
@@ -76,11 +80,39 @@ public sealed class IndexWeekSelectionTests
             ]);
         var model = new IndexModel(new StaticDashboardService(dashboard), new FixedTimeProvider(now));
 
-        await model.OnGetAsync(CancellationToken.None);
+        await model.OnGetMetricsAsync(CancellationToken.None);
 
         Assert.False(model.HasMetricDiagnostics);
         Assert.Single(model.VisibleMetrics);
         Assert.Equal("Meetings this week", model.VisibleMetrics[0].Title);
+    }
+
+    [Fact]
+    public async Task OnGetMetricsAsync_ReturnsUncachedMetricsPartial()
+    {
+        var now = new DateTimeOffset(2026, 8, 6, 15, 0, 0, TimeSpan.Zero);
+        var service = new RecordingDashboardService(now);
+        var httpContext = new DefaultHttpContext();
+        var model = new IndexModel(service, new FixedTimeProvider(now))
+        {
+            Week = "2026-W30",
+            PageContext = new PageContext
+            {
+                HttpContext = httpContext,
+                ViewData = new ViewDataDictionary(
+                    new EmptyModelMetadataProvider(),
+                    new ModelStateDictionary())
+            }
+        };
+
+        var result = await model.OnGetMetricsAsync(CancellationToken.None);
+
+        Assert.Equal("Shared/_DashboardMetrics", result.ViewName);
+        Assert.Same(model, result.ViewData.Model);
+        Assert.Equal("no-store", httpContext.Response.Headers.CacheControl);
+        Assert.Equal(
+            new DateTimeOffset(2026, 7, 20, 0, 0, 0, TimeSpan.Zero),
+            service.LastRequestedWeekStartUtc);
     }
 
     [Fact]
@@ -110,7 +142,7 @@ public sealed class IndexWeekSelectionTests
             new ExecutiveDashboard.Tests.FixedTimeProvider(now));
         var model = new IndexModel(service, new FixedTimeProvider(now));
 
-        await model.OnGetAsync(CancellationToken.None);
+        await model.OnGetMetricsAsync(CancellationToken.None);
 
         Assert.False(model.HasMetricDiagnostics);
         Assert.Contains(model.VisibleMetrics, metric => metric.Title == "Meetings this week" && metric.Value == "0");
@@ -130,7 +162,7 @@ public sealed class IndexWeekSelectionTests
             new ExecutiveDashboard.Tests.FixedTimeProvider(now));
         var model = new IndexModel(service, new FixedTimeProvider(now));
 
-        await model.OnGetAsync(CancellationToken.None);
+        await model.OnGetMetricsAsync(CancellationToken.None);
 
         Assert.Contains(model.VisibleMetrics, metric => metric.Title == "Percent informational meetings" && metric.Value == "0%");
         Assert.DoesNotContain(model.VisibleMetrics, metric => metric.Title == "Percent protracted conversations");
@@ -162,7 +194,7 @@ public sealed class IndexWeekSelectionTests
             new ExecutiveDashboard.Tests.FixedTimeProvider(now));
         var model = new IndexModel(service, new FixedTimeProvider(now));
 
-        await model.OnGetAsync(CancellationToken.None);
+        await model.OnGetMetricsAsync(CancellationToken.None);
 
         Assert.True(model.HasMetricDiagnostics);
         Assert.Equal("Metric data needs attention.", model.MetricDiagnosticsTitle);
@@ -195,7 +227,7 @@ public sealed class IndexWeekSelectionTests
             new ExecutiveDashboard.Tests.FixedTimeProvider(now));
         var model = new IndexModel(service, new FixedTimeProvider(now));
 
-        await model.OnGetAsync(CancellationToken.None);
+        await model.OnGetMetricsAsync(CancellationToken.None);
 
         Assert.True(model.HasMetricDiagnostics);
         Assert.Equal("Metric data needs attention.", model.MetricDiagnosticsTitle);
@@ -220,7 +252,7 @@ public sealed class IndexWeekSelectionTests
             []);
         var model = new IndexModel(new StaticDashboardService(dashboard), new FixedTimeProvider(now));
 
-        await model.OnGetAsync(CancellationToken.None);
+        await model.OnGetMetricsAsync(CancellationToken.None);
 
         Assert.True(model.HasMetricDiagnostics);
         Assert.Equal("Work IQ request failed.", model.MetricDiagnosticsMessage);
@@ -240,7 +272,7 @@ public sealed class IndexWeekSelectionTests
             [new DashboardMetricCard("Meetings this week", "10", AvailabilityState.Available, "Available")]);
         var model = new IndexModel(new StaticDashboardService(dashboard), new FixedTimeProvider(now));
 
-        await model.OnGetAsync(CancellationToken.None);
+        await model.OnGetMetricsAsync(CancellationToken.None);
 
         Assert.True(model.HasMetricDiagnostics);
         Assert.Equal("Metric data needs attention.", model.MetricDiagnosticsTitle);
@@ -268,7 +300,7 @@ public sealed class IndexWeekSelectionTests
             ]);
         var model = new IndexModel(new StaticDashboardService(dashboard), new FixedTimeProvider(now));
 
-        await model.OnGetAsync(CancellationToken.None);
+        await model.OnGetMetricsAsync(CancellationToken.None);
 
         Assert.Equal(
             "Work IQ consent is required for attendee identities. Percent with no decision reached: No decision-relevant meetings include accessible content for decision analysis.",
@@ -296,7 +328,7 @@ public sealed class IndexWeekSelectionTests
             ]);
         var model = new IndexModel(new StaticDashboardService(dashboard), new FixedTimeProvider(now));
 
-        await model.OnGetAsync(CancellationToken.None);
+        await model.OnGetMetricsAsync(CancellationToken.None);
 
         Assert.Equal(
             "Work IQ consent is required for attendee identities. Percent with no decision reached: No decision-relevant meetings include accessible content for decision analysis.",

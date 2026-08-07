@@ -59,3 +59,59 @@
     });
   });
 })();
+
+(() => {
+  const region = document.querySelector("[data-dashboard-region]");
+  if (!(region instanceof HTMLElement)) {
+    return;
+  }
+
+  const dashboardUrl = region.dataset.dashboardUrl;
+  if (!dashboardUrl) {
+    return;
+  }
+
+  const loadingMarkup = region.innerHTML;
+
+  const loadDashboard = async (isRetry = false) => {
+    region.innerHTML = loadingMarkup;
+    region.setAttribute("aria-busy", "true");
+    const loadingStatus = region.querySelector(".dashboard-loading-status");
+    if (isRetry && loadingStatus instanceof HTMLElement) {
+      loadingStatus.textContent = "Retrying dashboard metrics…";
+      loadingStatus.tabIndex = -1;
+      loadingStatus.focus();
+    }
+
+    try {
+      const response = await fetch(dashboardUrl, {
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        throw new Error(`Dashboard request failed with status ${response.status}.`);
+      }
+
+      region.innerHTML = await response.text();
+      region.setAttribute("aria-busy", "false");
+    } catch {
+      region.innerHTML = `
+        <aside class="dashboard-alert" role="alert">
+          <strong>Dashboard metrics could not be loaded.</strong>
+          <span>Work IQ did not complete the request. Retry when the connection is available.</span>
+          <button type="button" class="btn btn-outline-primary btn-sm" data-dashboard-retry>Retry</button>
+        </aside>`;
+      region.setAttribute("aria-busy", "false");
+    }
+  };
+
+  region.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element) || !event.target.closest("[data-dashboard-retry]")) {
+      return;
+    }
+
+    loadDashboard(true);
+  });
+
+  loadDashboard();
+})();

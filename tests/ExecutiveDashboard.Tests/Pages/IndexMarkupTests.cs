@@ -55,17 +55,42 @@ public sealed class IndexMarkupTests
     }
 
     [Fact]
+    public void IndexPage_UsesDeferredMetricsFragmentWithRecoverableLoadingState()
+    {
+        var indexMarkupPath = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "../../../../../src/ExecutiveDashboard/Pages/Index.cshtml"));
+        var scriptPath = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "../../../../../src/ExecutiveDashboard/wwwroot/js/site.js"));
+        var markup = File.ReadAllText(indexMarkupPath);
+        var script = File.ReadAllText(scriptPath);
+
+        Assert.Contains("data-dashboard-url=", markup, StringComparison.Ordinal);
+        Assert.Contains("aria-busy=\"false\"", markup, StringComparison.Ordinal);
+        Assert.Contains("[data-dashboard-region]", markup, StringComparison.Ordinal);
+        Assert.Contains("Retrying dashboard metrics", script, StringComparison.Ordinal);
+        Assert.Contains("loadingStatus.focus()", script, StringComparison.Ordinal);
+        Assert.Contains("region.addEventListener(\"click\"", script, StringComparison.Ordinal);
+        Assert.Contains("data-dashboard-retry", script, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void IndexPage_FallsBackToDefaultDashboardTitleAndDescription()
     {
         var indexMarkupPath = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory,
             "../../../../../src/ExecutiveDashboard/Pages/Index.cshtml"));
         var markup = File.ReadAllText(indexMarkupPath);
+        var partialMarkupPath = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "../../../../../src/ExecutiveDashboard/Pages/Shared/_DashboardMetrics.cshtml"));
+        var partialMarkup = File.ReadAllText(partialMarkupPath);
 
-        Assert.Contains("@(Model.Dashboard.DisplayTitle ?? \"Executive metrics\")", markup, StringComparison.Ordinal);
+        Assert.Contains("@(Model.Dashboard.DisplayTitle ?? \"Executive metrics\")", partialMarkup, StringComparison.Ordinal);
         Assert.Contains(
             "@(Model.Dashboard.DisplayDescription ?? \"Each tile isolates one decision signal from the selected reporting week.\")",
-            markup,
+            partialMarkup,
             StringComparison.Ordinal);
     }
 }

@@ -1,6 +1,7 @@
 using ExecutiveDashboard.Models;
 using ExecutiveDashboard.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace ExecutiveDashboard.Pages;
@@ -29,10 +30,12 @@ public sealed class IndexModel(IDashboardService dashboardService, TimeProvider 
 
     public string MaxSelectableWeekValue { get; private set; } = string.Empty;
 
+    private DateTimeOffset SelectedPeriodStartsAtUtc { get; set; }
+
+    private DateTimeOffset SelectedPeriodEndsAtUtc => SelectedPeriodStartsAtUtc.AddDays(7);
+
     public string PeriodLabel =>
-        Dashboard.PeriodStartsAtUtc == DateTimeOffset.MinValue
-            ? "Current reporting window"
-            : $"{Dashboard.PeriodStartsAtUtc:MMM d} – {GetPeriodEndForDisplay(Dashboard.PeriodStartsAtUtc, Dashboard.PeriodEndsAtUtc):MMM d, yyyy} UTC";
+        $"{SelectedPeriodStartsAtUtc:MMM d} – {GetPeriodEndForDisplay(SelectedPeriodStartsAtUtc, SelectedPeriodEndsAtUtc):MMM d, yyyy} UTC";
 
     public string SourceStateLabel => Dashboard.IsSampleData
         ? "Sample data"
@@ -63,12 +66,37 @@ public sealed class IndexModel(IDashboardService dashboardService, TimeProvider 
 
     public string MetricDiagnosticsMessage => GetMetricDiagnosticsMessage();
 
-    public async Task OnGetAsync(CancellationToken cancellationToken)
+    public void OnGet()
+    {
+        ConfigureSelectedWeek();
+    }
+
+    public async Task<PartialViewResult> OnGetMetricsAsync(CancellationToken cancellationToken)
+    {
+        ConfigureSelectedWeek();
+        Dashboard = await dashboardService.GetDashboardAsync(SelectedPeriodStartsAtUtc, cancellationToken);
+        if (PageContext?.HttpContext is { } httpContext)
+        {
+            httpContext.Response.Headers.CacheControl = "no-store";
+        }
+        var result = new PartialViewResult
+        {
+            ViewName = "Shared/_DashboardMetrics"
+        };
+
+        if (ViewData is { } viewData)
+        {
+            result.ViewData = new ViewDataDictionary<IndexModel>(viewData, this);
+        }
+
+        return result;
+    }
+
+    private void ConfigureSelectedWeek()
     {
         var lastCompletedWeekStart = IsoWeekSelection.LastCompletedWeekStart(timeProvider.GetUtcNow());
-        var selectedWeekStart = IsoWeekSelection.ResolveSelectedWeekStart(Week, lastCompletedWeekStart);
-        Dashboard = await dashboardService.GetDashboardAsync(selectedWeekStart, cancellationToken);
-        SelectedWeekValue = IsoWeekSelection.ToWeekPickerValue(Dashboard.PeriodStartsAtUtc);
+        SelectedPeriodStartsAtUtc = IsoWeekSelection.ResolveSelectedWeekStart(Week, lastCompletedWeekStart);
+        SelectedWeekValue = IsoWeekSelection.ToWeekPickerValue(SelectedPeriodStartsAtUtc);
         MaxSelectableWeekValue = IsoWeekSelection.ToWeekPickerValue(lastCompletedWeekStart);
         if (PageContext?.ViewData is not null)
         {

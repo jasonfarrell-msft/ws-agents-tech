@@ -4,48 +4,37 @@
     ViewData["Title"] = "Executive dashboard";
 }
 
-<section class="dashboard-section metrics-section" aria-labelledby="metrics-heading">
-    <div class="dashboard-section__heading">
-        <h1 id="metrics-heading">@(Model.Dashboard.DisplayTitle ?? "Executive metrics")</h1>
-        <p>@(Model.Dashboard.DisplayDescription ?? "Each tile isolates one decision signal from the selected reporting week.")</p>
-    </div>
+<div data-dashboard-region
+     data-dashboard-url="@Url.Page("/Index", "Metrics", new { week = Model.SelectedWeekValue })"
+     aria-live="polite"
+     aria-busy="false">
+    <section class="dashboard-section metrics-section" aria-labelledby="metrics-heading">
+        <div class="dashboard-section__heading">
+            <h1 id="metrics-heading">Executive metrics</h1>
+            <p>Loading Work IQ signals for @Model.PeriodLabel.</p>
+        </div>
+        <p class="dashboard-loading-status" role="status">Loading dashboard metrics…</p>
+        <ul class="metric-grid" role="list" aria-hidden="true">
+            @for (var index = 0; index < 6; index++)
+            {
+                <li class="metric-grid__item">
+                    <article class="metric-card metric-card--loading">
+                        <span class="visually-hidden">Loading metric</span>
+                    </article>
+                </li>
+            }
+        </ul>
+    </section>
+</div>
 
-    @if (Model.HasMetricDiagnostics)
-    {
-        <aside class="dashboard-alert" role="alert">
-            <strong>@Model.MetricDiagnosticsTitle</strong>
-            <span>@Model.MetricDiagnosticsMessage</span>
-        </aside>
-    }
-
-    <ul class="metric-grid" role="list">
-        @for (var index = 0; index < Model.VisibleMetrics.Count; index++)
-        {
-            var metric = Model.VisibleMetrics[index];
-            var titleId = $"metric-{index}";
-            var descriptionId = $"{titleId}-description";
-            var guidanceId = $"{titleId}-guidance";
-            var contextId = $"{titleId}-context";
-            var describedBy = metric.ThresholdGuidance is null
-                ? $"{descriptionId} {contextId}"
-                : $"{descriptionId} {guidanceId} {contextId}";
-
-            <li class="metric-grid__item">
-                <article class="@Model.GetMetricCardCssClass(metric)" aria-labelledby="@titleId" aria-describedby="@describedBy">
-                    <p class="metric-card__status">@Model.GetMetricStateLabel(metric)</p>
-                    <h3 id="@titleId" class="metric-card__title">@metric.Title</h3>
-                    <p class="metric-card__value">@metric.Value</p>
-                    <p class="metric-card__query">Aggregate signal</p>
-                    <p id="@descriptionId" class="metric-card__description">@metric.HelpText</p>
-                    @if (!string.IsNullOrWhiteSpace(metric.ThresholdGuidance))
-                    {
-                        <p id="@guidanceId" class="metric-card__guidance">
-                            <span class="metric-card__guidance-label">Threshold guidance:</span> @metric.ThresholdGuidance
-                        </p>
-                    }
-                    <p id="@contextId" class="metric-card__context">@Model.GetMetricContext(metric)</p>
-                </article>
-            </li>
+<noscript>
+    <style>
+        [data-dashboard-region] {
+            display: none;
         }
-    </ul>
-</section>
+    </style>
+    <aside class="dashboard-alert" role="alert">
+        <strong>JavaScript is required to load Work IQ metrics.</strong>
+        <span>Enable JavaScript and reload the page.</span>
+    </aside>
+</noscript>
